@@ -1,5 +1,5 @@
 name: opencred
-description: OpenCred offline GIC demonstration app.
+description: TrustScore offline GIC demonstration app.
 publish_to: "none"
 version: 1.0.0+1
 

@@ -22,8 +22,8 @@ class StatusPill extends StatelessWidget {
   final Color color;
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(color: color.withOpacity(.10), borderRadius: BorderRadius.circular(99)),
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+    decoration: BoxDecoration(color: color.withOpacity(.10), borderRadius: BorderRadius.circular(18)),
     child: Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
   );
 }
@@ -55,7 +55,7 @@ class Disclosure extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: OpenCredTheme.sand.withOpacity(.7), borderRadius: BorderRadius.circular(16)),
+    decoration: BoxDecoration(color: OpenCredTheme.sand.withOpacity(.65), borderRadius: BorderRadius.circular(20)),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Icon(icon, color: OpenCredTheme.blue, size: 20), const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

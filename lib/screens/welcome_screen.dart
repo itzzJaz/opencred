@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../app_theme.dart';
 import '../models.dart';
 import '../widgets.dart';
 
@@ -36,7 +35,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(child: FadeTransition(opacity: fade, child: SlideTransition(position: slide, child: Padding(padding: const EdgeInsets.fromLTRB(24, 28, 24, 28), child: Column(
       crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Container(width: 38, height: 38, decoration: BoxDecoration(color: OpenCredTheme.ink, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.insights_rounded, color: Colors.white)), const SizedBox(width: 10), const Text('TRUSTSCORE', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.w800))]),
+      Row(children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Image.asset('assets/images/trustscore_icon.jpg', width: 42, height: 42, fit: BoxFit.cover),
+        ),
+        const SizedBox(width: 10),
+        const Text('TRUSTSCORE', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.w800)),
+      ]),
       const Spacer(),
       const Text('Trust beyond\ncredit history.', style: TextStyle(fontSize: 44, height: 1.03, letterSpacing: -1.5, fontWeight: FontWeight.w800)),
       const SizedBox(height: 18),
