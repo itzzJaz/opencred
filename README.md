@@ -1,8 +1,8 @@
-# OpenCred
+# TrustScore
 
 **Trust Beyond Credit History. Expanding Access Through Responsible AI.**
 
-OpenCred is a proposed AI-powered financial inclusion platform. It provides participating financial institutions with supplementary, explainable financial-behaviour assessments while ensuring that applicants without sufficient evidence are not automatically treated as unreliable.
+TrustScore is a proposed AI-powered financial inclusion platform. It provides participating financial institutions with supplementary, explainable financial-behaviour assessments while ensuring that applicants without sufficient evidence are not automatically treated as unreliable.
 
 The project now includes an **offline Flutter demonstration frontend**. It has no production integrations, real National ID checks, real financial records, or validated real-world predictive claims. The app uses synthetic applicants, bundled CSV records, simulated identity/data states, and a clearly labelled mock assessment service.
 

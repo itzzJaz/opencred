@@ -1,10 +1,10 @@
-# OpenCred Project Overview
+# TrustScore Project Overview
 
 ## Purpose
 
-OpenCred is a proposed financial inclusion platform that gives participating financial institutions an additional view of an applicant's financial behaviour beyond conventional credit history. It is designed for self-employed people, informal workers, small-business owners, people with irregular income, and people who have not previously borrowed.
+TrustScore is a proposed financial inclusion platform that gives participating financial institutions an additional view of an applicant's financial behaviour beyond conventional credit history. It is designed for self-employed people, informal workers, small-business owners, people with irregular income, and people who have not previously borrowed.
 
-OpenCred is not a replacement for a lender's underwriting, affordability, compliance, or responsible-lending obligations. It is not a loan provider and must never turn a TrustScore into an automatic approval or rejection.
+TrustScore is not a replacement for a lender's underwriting, affordability, compliance, or responsible-lending obligations. It is not a loan provider and must never turn a TrustScore assessment into an automatic approval or rejection.
 
 ## The inclusion problem
 

@@ -17,7 +17,7 @@ Recommended future stack:
 
 Current demonstration frontend:
 
-- Flutter/Dart with Material 3 and a custom OpenCred design system;
+- Flutter/Dart with Material 3 and a custom TrustScore design system;
 - bundled synthetic CSV assets and a deterministic in-memory demo state;
 - mock identity, consent, assessment, institution review, assistance, and status surfaces;
 - no network dependency and no real National ID, bank, government, or AI provider.

@@ -10,7 +10,7 @@ class OverviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.fromLTRB(20, 20, 20, 32), children: [
     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('OPENCRED', style: TextStyle(letterSpacing: 2, color: Colors.grey[600], fontWeight: FontWeight.w700, fontSize: 12)),
+        Text('TRUSTSCORE', style: TextStyle(letterSpacing: 2, color: Colors.grey[600], fontWeight: FontWeight.w700, fontSize: 12)),
         const SizedBox(height: 4), Text('Good morning', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
       ]),
     const SizedBox(height: 24),

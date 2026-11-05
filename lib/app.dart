@@ -23,7 +23,7 @@ class _OpenCredAppState extends State<OpenCredApp> {
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: state,
     builder: (context, _) => MaterialApp(
-      title: 'OpenCred',
+      title: 'TrustScore',
       debugShowCheckedModeBanner: false,
       theme: OpenCredTheme.light(),
       home: state.showWelcome ? WelcomeScreen(state: state) : _Shell(state: state),

@@ -1,8 +1,8 @@
-# OpenCred Agent Instructions
+# TrustScore Agent Instructions
 
 ## Mission
 
-OpenCred is an AI-powered financial inclusion platform proposal. It provides supplementary, explainable financial-behaviour assessment while treating applicants with insufficient evidence fairly. It is not an ordinary credit-scoring or automatic loan-approval application.
+TrustScore is an AI-powered financial inclusion platform proposal. It provides supplementary, explainable financial-behaviour assessment while treating applicants with insufficient evidence fairly. It is not an ordinary credit-scoring or automatic loan-approval application.
 
 ## Required context
 
