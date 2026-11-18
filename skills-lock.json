@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "skills": {
+    "liquid-glass": {
+      "source": "haider-nawaz/liquid-glass-skill",
+      "commit": "2c1b2789c30dc2c9208f3b9a3811d42480714577",
+      "sourceType": "github",
+      "skillPath": "plugins/liquid-glass/skills/liquid-glass/SKILL.md",
+      "computedHash": "e268556d4073ab0a69f68e8cc957a5a0912d9bcbb5b64e32278eed9f99353ea4"
+    },
+    "unslop": {
+      "source": "heydamir/unslop",
+      "commit": "620163eedb3529d9cd23a3994ed8d287d06f760d",
+      "sourceType": "github",
+      "skillPath": "skills/unslop/SKILL.md",
+      "computedHash": "34b16270083f9892424a0b41dec4d5f25a73709c9cffa7702e57c723000e6df5"
+    }
+  }
+}

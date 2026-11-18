@@ -1,63 +1,211 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
+
 import 'models.dart';
+import 'trustscore_model.dart';
 
 class DemoRepository {
-  static Future<List<Applicant>> loadApplicants() async {
-    final definitions = [
-      ('ravi', 'Ravi Kumar', 'RK', 'Consistent household finances',
-          'assets/images/ravi_profile.png',
-          'Strong evidence across rent, utilities, income and repayments.', 'High evidence', .94,
-          AssessmentPathway.trustScore, ['Reliable rent payments', 'Stable verified income']),
-      ('arjun', 'Arjun Patel', 'AP', 'Evidence still developing',
-          'assets/images/arjun_profile.png',
-          'Some records are available, but a fair score cannot be produced yet.', 'Insufficient evidence', .42,
-          AssessmentPathway.alternative, ['Income records are partial', 'Alternative verification recommended']),
-      ('vikram', 'Vikram Singh', 'VS', 'Irregular payment behaviour',
-          'assets/images/vikram_profile.png',
-          'Sufficient records show repeated late and missed payments.', 'Sufficient evidence', .86,
-          AssessmentPathway.trustScore, ['Verified income is irregular', 'Late rent and utility payments']),
-    ];
-    final applicants = <Applicant>[];
-    for (final definition in definitions) {
-      final records = await _loadRecords(definition.$1);
-      applicants.add(Applicant(
-        id: definition.$1,
-        name: definition.$2,
-        initials: definition.$3,
-        role: definition.$4,
-        avatarAsset: definition.$5,
-        summary: definition.$6,
-        evidenceLabel: definition.$7,
-        evidenceValue: definition.$8,
-        pathway: definition.$9,
-        records: records,
-        positiveFactors: definition.$10,
-        negativeFactors: records.any((record) => record.repayment == 'late' || record.repayment == 'missed')
-            ? ['Repeated overdue payments', 'Income varies month to month']
-            : ['Six months of payment history', 'Income source verified'],
-      ));
-    }
-    return applicants;
-  }
+  static TrustScoreModel? _model;
 
-  static Future<List<FinancialRecord>> _loadRecords(String id) async {
-    final fileName = switch (id) {
-      'ravi' => 'ravi_kumar.csv',
-      'arjun' => 'arjun_patel.csv',
-      'vikram' => 'vikram_singh.csv',
-      _ => throw ArgumentError('Unknown demo applicant: $id'),
-    };
-    final csv = await rootBundle.loadString('assets/data/$fileName');
-    return csv.trim().split('\n').skip(1).map((line) {
-      final values = line.split(',');
-      double? number(String value) => value.isEmpty ? null : double.tryParse(value);
-      return FinancialRecord(
-        month: values[0],
-        rent: number(values[1]),
-        utilities: number(values[2]),
-        income: number(values[3]),
-        repayment: values[4],
+  /// The bundled model is parsed once and reused for the seeded profiles and
+  /// for any applicant created during a session.
+  static Future<TrustScoreModel> loadModel() async =>
+      _model ??= await TrustScoreModel.load();
+
+  static Future<List<Applicant>> loadApplicants() async {
+    final model = await loadModel();
+    final csv = await rootBundle.loadString('assets/data/applicants.csv');
+    final rows = _parseCsv(csv);
+    if (rows.isEmpty) {
+      throw const FormatException(
+          'assets/data/applicants.csv contains no applicants');
+    }
+
+    return rows.asMap().entries.map((entry) {
+      final values = entry.value;
+      final id = values['applicant_id'];
+      if (id == null || id.isEmpty) {
+        throw FormatException(
+            'Applicant row ${entry.key + 2} has no applicant_id');
+      }
+      final evidence = {
+        for (final feature in _features) feature: _number(values[feature]),
+      };
+      final assessment = model.assess(evidence);
+      final hasScore = assessment.hasScore;
+      final name = _nameFor(entry.key);
+      return Applicant(
+        id: id,
+        name: name,
+        initials: _initialsFor(name),
+        avatarAsset: 'assets/images/trustscore_icon.jpg',
+        role: hasScore ? 'Evidence available' : 'Evidence still developing',
+        summary: hasScore
+            ? 'A model assessment is available from the submitted evidence.'
+            : 'There is not enough evidence for a fair model assessment.',
+        evidenceLabel:
+            hasScore ? 'Sufficient evidence' : 'Insufficient evidence',
+        evidenceValue: assessment.presentFeatures / _features.length,
+        pathway: hasScore
+            ? AssessmentPathway.trustScore
+            : AssessmentPathway.alternative,
+        records: const [],
+        positiveFactors: positiveFactors(evidence),
+        negativeFactors: negativeFactors(evidence),
+        evidence: evidence,
+        assessment: assessment,
       );
     }).toList();
+  }
+
+  static const _features = [
+    'utility_payment_consistency_pct',
+    'rent_payment_reliability_pct',
+    'previous_loan_repayment_history',
+    'missed_payments_count_12m',
+    'verified_income_regularity_pct',
+    'existing_financial_obligations_ratio',
+  ];
+
+  /// 25 first names by 20 surnames gives one distinct pair per seeded row,
+  /// in CSV order. Names are stable across runs so a judge can return to the
+  /// same profile by name or id.
+  static const _firstNames = [
+    'Aisha',
+    'Daniel',
+    'Mercy',
+    'Liam',
+    'Nadia',
+    'Elias',
+    'Priya',
+    'Noah',
+    'Sofia',
+    'Marcus',
+    'Leila',
+    'Owen',
+    'Grace',
+    'Tomas',
+    'Amara',
+    'Rahul',
+    'Elena',
+    'Kwame',
+    'Hana',
+    'Diego',
+    'Ingrid',
+    'Samir',
+    'Chloe',
+    'Mateo',
+    'Zara',
+  ];
+
+  static const _surnames = [
+    'Okafor',
+    'Bennett',
+    'Silva',
+    'Rahman',
+    'Larson',
+    'Mensah',
+    'Patel',
+    'Moreau',
+    'Novak',
+    'Haddad',
+    'Kimani',
+    'Ferreira',
+    'Nyberg',
+    'Osei',
+    'Tan',
+    'Iyer',
+    'Duarte',
+    'Mwangi',
+    'Kaur',
+    'Andersen',
+  ];
+
+  static String _nameFor(int index) {
+    final firstIndex = index % _firstNames.length;
+    final block = index ~/ _firstNames.length;
+    // Offset each block's surnames so consecutive rows do not read as one
+    // family. The pairing stays unique across all 500 rows.
+    final lastIndex = (block + firstIndex * 7) % _surnames.length;
+    return '${_firstNames[firstIndex]} ${_surnames[lastIndex]}';
+  }
+
+  static String _initialsFor(String name) {
+    final parts = name.split(' ');
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  static double? _number(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    return double.tryParse(value);
+  }
+
+  static List<String> positiveFactors(Map<String, double?> evidence) {
+    final factors = <String>[];
+    if ((evidence['verified_income_regularity_pct'] ?? 0) >= 70) {
+      factors.add('Regular verified income');
+    }
+    if ((evidence['utility_payment_consistency_pct'] ?? 0) >= 75) {
+      factors.add('Consistent utility payments');
+    }
+    return factors.isEmpty
+        ? ['No strong positive indicator available']
+        : factors;
+  }
+
+  static List<String> negativeFactors(Map<String, double?> evidence) {
+    final factors = <String>[];
+    if ((evidence['missed_payments_count_12m'] ?? 0) >= 2) {
+      factors.add('Missed payments in the last 12 months');
+    }
+    if ((evidence['existing_financial_obligations_ratio'] ?? 0) >= .5) {
+      factors.add('Higher existing obligations ratio');
+    }
+    return factors.isEmpty
+        ? ['No strong negative indicator available']
+        : factors;
+  }
+
+  static List<Map<String, String>> _parseCsv(String source) {
+    final lines = const LineSplitter().convert(source.trim());
+    if (lines.isEmpty) return [];
+    final headers = _splitLine(lines.first);
+    if (headers.contains('')) {
+      throw const FormatException('CSV contains an empty header');
+    }
+    return [
+      for (final line in lines.skip(1))
+        if (line.trim().isNotEmpty)
+          _row(headers, _splitLine(line), lines.indexOf(line) + 1),
+    ];
+  }
+
+  static Map<String, String> _row(
+      List<String> headers, List<String> values, int lineNumber) {
+    if (headers.length != values.length) {
+      throw FormatException(
+          'CSV row $lineNumber has ${values.length} columns; expected ${headers.length}');
+    }
+    return Map.fromIterables(headers, values);
+  }
+
+  static List<String> _splitLine(String line) {
+    final values = <String>[];
+    var current = StringBuffer();
+    var quoted = false;
+    for (var i = 0; i < line.length; i++) {
+      final character = line[i];
+      if (character == '"') {
+        quoted = !quoted;
+      } else if (character == ',' && !quoted) {
+        values.add(current.toString().trim());
+        current = StringBuffer();
+      } else {
+        current.write(character);
+      }
+    }
+    values.add(current.toString().trim());
+    return values;
   }
 }

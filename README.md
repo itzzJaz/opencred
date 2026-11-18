@@ -4,7 +4,7 @@
 
 TrustScore is a proposed AI-powered financial inclusion platform. It provides participating financial institutions with supplementary, explainable financial-behaviour assessments while ensuring that applicants without sufficient evidence are not automatically treated as unreliable.
 
-The project now includes an **offline Flutter demonstration frontend**. It has no production integrations, real National ID checks, real financial records, or validated real-world predictive claims. The app uses synthetic applicants, bundled CSV records, simulated identity/data states, and a clearly labelled mock assessment service.
+The project now includes an **offline Flutter demonstration frontend**. It has no production integrations, real National ID checks, real financial records, or validated real-world predictive claims. The app uses synthetic applicants, a dynamic bundled CSV, a portable Random Forest model artifact, and simulated identity/data states.
 
 ## Core principles
 
@@ -21,6 +21,7 @@ The project now includes an **offline Flutter demonstration frontend**. It has n
 - [Technical architecture](docs/TECHNICAL_ARCHITECTURE.md)
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
 - [AI/ML specification](docs/AI_ML_SPECIFICATION.md)
+- [Synthetic model training](docs/MODEL_TRAINING.md)
 - [Database schema](docs/DATABASE_SCHEMA.md)
 - [Security and privacy](docs/SECURITY_AND_PRIVACY.md)
 - [Feature specification](docs/FEATURE_SPECIFICATION.md)
@@ -30,13 +31,14 @@ The project now includes an **offline Flutter demonstration frontend**. It has n
 
 ## Flutter demonstration
 
-The Flutter app lives in [`lib/`](lib/) and uses three bundled datasets in [`assets/data/`](assets/data/). It provides:
+The Flutter app lives in [`lib/`](lib/) and loads every row in [`assets/data/applicants.csv`](assets/data/applicants.csv) as a profile. It provides:
 
 - Judge Demo Mode with reset and one-tap applicant switching;
 - applicant journey states for simulated verification, consent, evidence and assessment;
 - TrustScore and alternative-assessment pathways;
 - institution review, interest assistance, application status messaging, and settings;
-- explicit synthetic, simulated, supplementary, and AI-pending disclosures.
+- explicit synthetic, simulated, supplementary, and offline-model disclosures;
+- local model inference for every profile with an evidence sufficiency gate.
 
 Run it from a machine with Flutter installed:
 
@@ -47,10 +49,10 @@ flutter test
 flutter run
 ```
 
-The current environment used to scaffold this project does not have the Flutter/Dart SDK installed, so those commands still need to be run in a Flutter-enabled environment.
+To add profiles, edit `assets/data/applicants.csv` and add one row per person using the existing header. Rebuild the app after changing the bundled asset; there is no fixed profile limit beyond device memory.
 
 ## Planned backend and model work
 
 The first implementation should demonstrate applicant registration, simulated identity verification, explicit consent, both assessment pathways, synthetic financial indicators, an illustrative TrustScore with explanations, insufficient-evidence handling, an institution dashboard, and a separate interest-assistance demonstration.
 
-The mobile frontend intentionally does not implement the AI model, live providers, automatic lending decisions, or real assistance funding. Those remain future phases described in the documentation.
+An offline synthetic training pipeline now lives under [`ml/`](ml/) and produces a versioned prototype model plus an evaluation report. The mobile frontend does not implement live providers, automatic lending decisions, or real assistance funding. Those remain future phases described in the documentation.

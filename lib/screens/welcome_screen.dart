@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../app_theme.dart';
 import '../models.dart';
 import '../widgets.dart';
 
@@ -10,18 +12,24 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProviderStateMixin {
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin {
   late final AnimationController controller;
   late final Animation<double> fade;
-  late final Animation<Offset> slide;
+  late final Animation<Offset> rise;
 
   @override
   void initState() {
     super.initState();
-    controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    final curved = CurvedAnimation(parent: controller, curve: Curves.easeOutCubic);
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    final curved =
+        CurvedAnimation(parent: controller, curve: Curves.easeOutCubic);
     fade = curved;
-    slide = Tween<Offset>(begin: const Offset(0, .04), end: Offset.zero).animate(curved);
+    rise = Tween<Offset>(begin: const Offset(0, .012), end: Offset.zero)
+        .animate(curved);
     controller.forward();
   }
 
@@ -32,26 +40,113 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(child: FadeTransition(opacity: fade, child: SlideTransition(position: slide, child: Padding(padding: const EdgeInsets.fromLTRB(24, 28, 24, 28), child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Image.asset('assets/images/trustscore_icon.jpg', width: 42, height: 42, fit: BoxFit.cover),
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    const padding = EdgeInsets.all(Spacing.lg);
+    return Scaffold(
+      body: SafeArea(
+        child: FadeTransition(
+          opacity: fade,
+          child: SlideTransition(
+            position: rise,
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                padding: padding,
+                child: ConstrainedBox(
+                  // Composed as a whole when it fits; scrolls instead of
+                  // clipping when the text is large.
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - padding.vertical,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: palette.hairline),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(9),
+                              child: Image.asset(
+                                'assets/images/trustscore_icon.jpg',
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: Spacing.sm),
+                          Text(
+                            'TrustScore',
+                            style: TextStyle(
+                              fontSize: 17,
+                              height: 1,
+                              fontWeight: FontWeight.w600,
+                              color: palette.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: palette.accent,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                          const SizedBox(height: Spacing.md),
+                          Text(
+                            'Trust beyond\ncredit history',
+                            style: TextStyle(
+                              fontSize: 40,
+                              height: 1.08,
+                              letterSpacing: -0.8,
+                              fontWeight: FontWeight.w500,
+                              color: palette.ink,
+                            ),
+                          ),
+                          const SizedBox(height: Spacing.md),
+                          Text(
+                            'A view of financial behaviour for people without a conventional credit history.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              height: 1.5,
+                              color: palette.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          FilledButton(
+                            onPressed: widget.state.startDemo,
+                            child: const Text('Get started'),
+                          ),
+                          const SizedBox(height: Spacing.sm),
+                          const Center(
+                            child: MetaText(
+                              'TrustScore · GEMS Innovation Challenge',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
-        const SizedBox(width: 10),
-        const Text('TRUSTSCORE', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.w800)),
-      ]),
-      const Spacer(),
-      const Text('Trust beyond\ncredit history.', style: TextStyle(fontSize: 44, height: 1.03, letterSpacing: -1.5, fontWeight: FontWeight.w800)),
-      const SizedBox(height: 18),
-      Text('A responsible, explainable view of financial behaviour for people whose story is bigger than a credit file.', style: TextStyle(fontSize: 17, color: Colors.grey[700], height: 1.4)),
-      const SizedBox(height: 24),
-      const Disclosure(title: 'Offline Judge Demo', body: 'Explore fictional applicants, simulated verification and a mock assessment. No real identity numbers or external services are used.'),
-      const Spacer(),
-      SizedBox(width: double.infinity, child: FilledButton(onPressed: widget.state.startDemo, child: const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Text('Start demonstration')))),
-      const SizedBox(height: 12), Center(child: Text('TrustScore · GEMS Innovation Challenge', style: TextStyle(color: Colors.grey, fontSize: 12))),
-    ]))))),
-  );
+      ),
+    );
+  }
 }

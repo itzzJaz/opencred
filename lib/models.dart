@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'trustscore_model.dart';
 
 enum AssessmentPathway { trustScore, alternative }
 
@@ -32,6 +33,8 @@ class Applicant {
     required this.records,
     required this.positiveFactors,
     required this.negativeFactors,
+    this.evidence,
+    this.assessment,
   });
 
   final String id;
@@ -46,15 +49,27 @@ class Applicant {
   final List<FinancialRecord> records;
   final List<String> positiveFactors;
   final List<String> negativeFactors;
+  final Map<String, double?>? evidence;
+  final TrustScoreAssessment? assessment;
 
   bool get hasScore => pathway == AssessmentPathway.trustScore;
-  double get evidenceCompleteness =>
-      records.isEmpty ? 0 : records.where((record) => record.income != null).length / records.length;
+  int? get trustScore => assessment?.score;
+  double get evidenceCompleteness => records.isEmpty
+      ? 0
+      : records.where((record) => record.income != null).length /
+          records.length;
 }
 
 class DemoState extends ChangeNotifier {
-  DemoState(this.applicants) : selected = applicants.first;
+  DemoState(List<Applicant> source)
+      : _seed = List<Applicant>.of(source),
+        applicants = List<Applicant>.of(source) {
+    selected = applicants.first;
+  }
 
+  /// The immutable seeded profiles. Reset restores this list, so anything
+  /// created during a session is removed without touching the caller's list.
+  final List<Applicant> _seed;
   final List<Applicant> applicants;
   late Applicant selected;
   int tabIndex = 0;
@@ -63,6 +78,41 @@ class DemoState extends ChangeNotifier {
   bool assessmentStarted = false;
   bool showWelcome = true;
   String applicationStatus = 'Under review';
+  ThemeMode themeMode = ThemeMode.system;
+  final Map<String, String> _notes = {};
+
+  /// The next free id after the seeded range and any profiles created since.
+  String get nextApplicantId {
+    var highest = 1499;
+    for (final applicant in applicants) {
+      final numeric = int.tryParse(applicant.id.replaceFirst('TS-', ''));
+      if (numeric != null && numeric > highest) highest = numeric;
+    }
+    return 'TS-${highest + 1}';
+  }
+
+  String noteFor(String applicantId) => _notes[applicantId] ?? '';
+
+  void setNote(String applicantId, String note) {
+    if (note.trim().isEmpty) {
+      _notes.remove(applicantId);
+    } else {
+      _notes[applicantId] = note;
+    }
+    // The text field already owns the visible text. Notifying on every
+    // keystroke would rebuild the whole shell without changing the screen.
+  }
+
+  void addApplicant(Applicant applicant) {
+    applicants.insert(0, applicant);
+    selectApplicant(applicant);
+  }
+
+  void setThemeMode(ThemeMode mode) {
+    if (themeMode == mode) return;
+    themeMode = mode;
+    notifyListeners();
+  }
 
   void selectApplicant(Applicant applicant) {
     selected = applicant;
@@ -98,6 +148,10 @@ class DemoState extends ChangeNotifier {
   }
 
   void reset() {
+    applicants
+      ..clear()
+      ..addAll(_seed);
+    _notes.clear();
     selected = applicants.first;
     tabIndex = 0;
     identityVerified = false;
