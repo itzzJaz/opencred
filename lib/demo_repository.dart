@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 
 import 'models.dart';
+import 'ollama_client.dart';
+import 'trustscore_engine.dart';
 import 'trustscore_model.dart';
 
 class DemoRepository {
@@ -12,6 +14,30 @@ class DemoRepository {
   /// for any applicant created during a session.
   static Future<TrustScoreModel> loadModel() async =>
       _model ??= await TrustScoreModel.load();
+
+  /// Scores one applicant through the laptop's Ollama server, falling back to
+  /// the bundled model when the server is off or unreachable.
+  static Future<TrustScoreAssessment> assess(
+    Map<String, double?> evidence,
+    OllamaConfig config,
+  ) async {
+    final model = await loadModel();
+    return TrustScoreEngine.assess(
+      local: model,
+      evidence: evidence,
+      config: config,
+    );
+  }
+
+  /// Confirms the app can reach Ollama and returns the installed models.
+  static Future<List<String>> testOllama(OllamaConfig config) async {
+    final client = OllamaClient();
+    try {
+      return await client.listModels(config);
+    } finally {
+      client.close();
+    }
+  }
 
   static Future<List<Applicant>> loadApplicants() async {
     final model = await loadModel();

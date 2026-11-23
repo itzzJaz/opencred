@@ -12,9 +12,6 @@ import 'package:opencred/screens/institution_screen.dart';
 import 'package:opencred/screens/overview_screen.dart';
 import 'package:opencred/screens/settings_screen.dart';
 import 'package:opencred/screens/welcome_screen.dart';
-
-/// Guards the layout: every screen is pumped at a small phone and a large
-/// phone, in both themes. A RenderFlex overflow fails the test.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -300,7 +297,6 @@ void main() {
         const Size(390, 844), Brightness.light);
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
-
     final nav = find.byType(GlassNavBar);
     await tester.tap(find.descendant(of: nav, matching: find.text('Settings')));
     await tester.pumpAndSettle();

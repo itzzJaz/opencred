@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../models.dart';
+import '../ollama_client.dart';
 import '../widgets.dart';
 
 /// The six fields the bundled model reads, in plain language. Missing values
@@ -23,12 +24,50 @@ String _formatEvidence(String key, double value) {
   return '${value.round()}';
 }
 
-class AssessmentScreen extends StatelessWidget {
+class AssessmentScreen extends StatefulWidget {
   const AssessmentScreen({required this.state, super.key});
   final DemoState state;
 
   @override
+  State<AssessmentScreen> createState() => _AssessmentScreenState();
+}
+
+class _AssessmentScreenState extends State<AssessmentScreen> {
+  String? _requestedId;
+  OllamaConfig? _requestedConfig;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _maybeAssessWithOllama();
+  }
+
+  @override
+  void didUpdateWidget(covariant AssessmentScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _maybeAssessWithOllama();
+  }
+
+  /// Scores the selected profile on the laptop once per profile/config pair.
+  /// The visible score stays on screen while the request is in flight.
+  void _maybeAssessWithOllama() {
+    final state = widget.state;
+    final applicant = state.selected;
+    final config = state.ollamaConfig;
+    if (!config.enabled || applicant.evidence == null) return;
+    if (state.ollamaBusy) return;
+    if (_requestedId == applicant.id && _requestedConfig == config) return;
+    _requestedId = applicant.id;
+    _requestedConfig = config;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      state.assessWithOllama(applicant.id);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         Layout.pageGutter,
@@ -41,12 +80,79 @@ class AssessmentScreen extends StatelessWidget {
           title: 'Assessment',
           subtitle: 'Evidence and outcome',
         ),
+        _EngineBanner(state: state),
         _EvidenceCard(state: state),
         const SizedBox(height: Spacing.md),
         ...(state.selected.hasScore
-            ? [_TrustScoreCard(applicant: state.selected)]
+            ? [_TrustScoreCard(applicant: state.selected, state: state)]
             : [_AlternativeCard(applicant: state.selected)]),
       ],
+    );
+  }
+}
+
+class _EngineBanner extends StatelessWidget {
+  const _EngineBanner({required this.state});
+  final DemoState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    if (!state.ollamaConfig.enabled) return const SizedBox.shrink();
+    final busy = state.ollamaBusy;
+    final message = state.ollamaMessage;
+    if (!busy && message == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.md),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Spacing.md,
+          vertical: Spacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: palette.raised,
+          borderRadius: BorderRadius.circular(Radii.row),
+          border: Border.all(color: palette.hairline),
+        ),
+        child: Row(
+          children: [
+            if (busy)
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: palette.accent,
+                ),
+              )
+            else
+              Icon(Icons.wifi_off_outlined, size: 16, color: palette.muted),
+            const SizedBox(width: Spacing.sm),
+            Expanded(
+              child: Text(
+                busy
+                    ? 'Asking Ollama on your laptop for a TrustScore…'
+                    : message!,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.4,
+                  color: palette.secondary,
+                ),
+              ),
+            ),
+            if (!busy && message != null)
+              IconButton(
+                tooltip: 'Try Ollama again',
+                onPressed: () =>
+                    state.assessWithOllama(state.selected.id, force: true),
+                constraints:
+                    const BoxConstraints.tightFor(width: 32, height: 32),
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.refresh, size: 16, color: palette.ink),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -147,8 +253,9 @@ class _EvidenceCard extends StatelessWidget {
 }
 
 class _TrustScoreCard extends StatelessWidget {
-  const _TrustScoreCard({required this.applicant});
+  const _TrustScoreCard({required this.applicant, required this.state});
   final Applicant applicant;
+  final DemoState state;
 
   @override
   Widget build(BuildContext context) {
@@ -205,9 +312,68 @@ class _TrustScoreCard extends StatelessWidget {
               _FactorRow(label: factor, positive: true),
             for (final factor in applicant.negativeFactors)
               _FactorRow(label: factor, positive: false),
+            const SizedBox(height: Spacing.md),
+            Divider(color: palette.hairline),
+            const SizedBox(height: Spacing.sm),
+            _EngineFooter(applicant: applicant, state: state),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _EngineFooter extends StatelessWidget {
+  const _EngineFooter({required this.applicant, required this.state});
+  final Applicant applicant;
+  final DemoState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    final assessment = applicant.assessment;
+    final fromLaptop = assessment?.isOllama ?? false;
+    final model = assessment?.modelVersion ?? 'bundled model';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          fromLaptop ? Icons.laptop_mac : Icons.inventory_2_outlined,
+          size: 16,
+          color: palette.muted,
+        ),
+        const SizedBox(width: Spacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                fromLaptop
+                    ? 'Scored by Ollama on your laptop'
+                    : 'Scored by the bundled model',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                  color: palette.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              MetaText(model),
+            ],
+          ),
+        ),
+        if (!fromLaptop && state.ollamaConfig.enabled)
+          IconButton(
+            tooltip: 'Score with Ollama',
+            onPressed: state.ollamaBusy
+                ? null
+                : () => state.assessWithOllama(applicant.id, force: true),
+            constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+            padding: EdgeInsets.zero,
+            icon: Icon(Icons.refresh, size: 17, color: palette.ink),
+          ),
+      ],
     );
   }
 }

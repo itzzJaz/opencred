@@ -38,6 +38,8 @@ The Flutter app lives in [`lib/`](lib/) and loads every row in [`assets/data/app
 - TrustScore and alternative-assessment pathways;
 - institution review, interest assistance, application status messaging, and settings;
 - explicit synthetic, simulated, supplementary, and offline-model disclosures;
+- TrustScore scoring through Ollama on the operator's laptop, with automatic
+  fallback to the bundled model when the laptop is unreachable;
 - local model inference for every profile with an evidence sufficiency gate.
 
 Run it from a machine with Flutter installed:
@@ -48,6 +50,47 @@ flutter analyze
 flutter test
 flutter run
 ```
+
+## Scoring with Ollama on your laptop
+
+The assessment screen sends only the six synthetic evidence features to an
+Ollama server and asks for a structured 0–1,000 TrustScore plus factors. If the
+server is off or unreachable, the app silently falls back to the bundled
+Random Forest so the offline demo still works.
+
+1. Install [Ollama](https://ollama.com) on the laptop and pull a model:
+
+   ```bash
+   ollama pull llama3.2
+   ```
+
+2. Start it on an address the phone or emulator can reach:
+
+   ```bash
+   OLLAMA_HOST=0.0.0.0 ollama serve
+   ```
+
+3. Open **Settings → TrustScore model** in the app and set the base URL:
+
+   - Android emulator: `http://10.0.2.2:11434`
+   - Phone on the same Wi-Fi: `http://<laptop-LAN-IP>:11434`
+   - Same machine (desktop build): `http://127.0.0.1:11434`
+
+   Then set the model name (for example `llama3.2`) and tap **Test connection**.
+
+The same values can be baked in at build time:
+
+```bash
+flutter run \
+  --dart-define=OLLAMA_BASE_URL=http://192.168.1.20:11434 \
+  --dart-define=OLLAMA_MODEL=llama3.2
+```
+
+Use `--dart-define=OLLAMA_ENABLED=false` to force the bundled model. Seeded
+profiles load instantly from the bundled model, and the selected profile is
+re-scored by Ollama when the Assessment tab opens. Newly created profiles are
+scored by Ollama directly. The card footer shows which engine produced the
+score.
 
 To add profiles, edit `assets/data/applicants.csv` and add one row per person using the existing header. Rebuild the app after changing the bundled asset; there is no fixed profile limit beyond device memory.
 

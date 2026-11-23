@@ -19,8 +19,11 @@ Current demonstration frontend:
 
 - Flutter/Dart with Material 3 and a custom TrustScore design system;
 - bundled synthetic CSV assets and a deterministic in-memory demo state;
-- mock identity, consent, assessment, institution review, assistance, and status surfaces;
-- no network dependency and no real National ID, bank, government, or AI provider.
+- mock identity, consent, assessment, institution review, assistance, and status
+  surfaces;
+- optional TrustScore scoring through Ollama on the operator's laptop, with the
+  bundled model as an offline fallback;
+- no real National ID, bank, government, or authentication provider.
 
 These are recommendations, not installed dependencies. No dependency should be added before implementation approval and a concrete need.
 

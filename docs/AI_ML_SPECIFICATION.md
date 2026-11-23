@@ -59,6 +59,17 @@ Evaluate at least Random Forest and Extra Trees against a simple documented base
 
 These are prototype measurements only. Do not select a model solely on aggregate accuracy.
 
+## Prototype Ollama adapter
+
+The Flutter demonstration can delegate TrustScore scoring to an Ollama model on
+the operator's laptop (see the README). The adapter sends only the six synthetic
+evidence features, requests structured JSON, and maps the reply onto the same
+assessment contract (0–1,000 score, engine/model version, factors, limitation).
+The evidence-sufficiency gate still runs before any model is called, and the
+bundled Random Forest scores the profile when Ollama is unavailable. An Ollama
+result is a local demonstration output, not a validated model: it inherits the
+same supplementary, non-decision limits and cannot approve or reject a loan.
+
 ## TrustScore calibration
 
 The raw model output must be transformed through a versioned calibration function into 0–1,000. Calibration must be deterministic and tested at boundaries. The 750 reference is displayed as **provisional** and cannot be treated as a policy threshold. Any future threshold requires institutional, legal, fairness, and validation review.

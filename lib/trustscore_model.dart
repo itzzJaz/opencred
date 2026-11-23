@@ -11,6 +11,9 @@ class TrustScoreAssessment {
     required this.presentFeatures,
     required this.requiredFeatures,
     required this.limitation,
+    this.engine = 'bundled-model',
+    this.positiveFactors = const [],
+    this.negativeFactors = const [],
   });
 
   final String status;
@@ -21,13 +24,27 @@ class TrustScoreAssessment {
   final int requiredFeatures;
   final String limitation;
 
+  /// `ollama` when the score came from a model on the operator's laptop,
+  /// `bundled-model` for the deterministic Random Forest artifact.
+  final String engine;
+  final List<String> positiveFactors;
+  final List<String> negativeFactors;
+
   bool get hasScore => status == 'scored' && score != null;
+  bool get isOllama => engine == 'ollama';
 }
 
 class TrustScoreModel {
   TrustScoreModel._(this._model);
 
   final Map<String, dynamic> _model;
+
+  /// The minimum number of present evidence features before any model may
+  /// emit a score. Missing evidence goes to the alternative pathway instead
+  /// of being read as poor behaviour.
+  int get requiredFeatures => (_model['min_features_for_score'] as num).toInt();
+
+  String get modelVersion => _model['model_version'] as String;
 
   static Future<TrustScoreModel> load() async {
     final source =

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
+import '../demo_repository.dart';
 import '../models.dart';
+import '../ollama_client.dart';
 import '../widgets.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -30,7 +32,8 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 const _SettingRow(
                   title: 'Demo build',
-                  meta: 'Synthetic profiles, no live services',
+                  meta:
+                      'Synthetic profiles · bundled model with optional Ollama',
                 ),
                 const Divider(),
                 _SettingRow(
@@ -77,6 +80,9 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Spacing.lg),
+        const SectionHeader(title: 'TrustScore model'),
+        _OllamaCard(state: state),
+        const SizedBox(height: Spacing.lg),
         const SectionHeader(title: 'About'),
         const Card(
           child: Padding(
@@ -94,6 +100,208 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Runtime configuration for the Ollama server on the operator's laptop.
+/// Values default to `OLLAMA_BASE_URL` / `OLLAMA_MODEL` build defines and can
+/// be changed here without rebuilding.
+class _OllamaCard extends StatefulWidget {
+  const _OllamaCard({required this.state});
+  final DemoState state;
+
+  @override
+  State<_OllamaCard> createState() => _OllamaCardState();
+}
+
+class _OllamaCardState extends State<_OllamaCard> {
+  late final TextEditingController url;
+  late final TextEditingController model;
+  late bool enabled;
+  bool testing = false;
+  String? status;
+  bool statusIsError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final config = widget.state.ollamaConfig;
+    url = TextEditingController(text: config.baseUrl);
+    model = TextEditingController(text: config.model);
+    enabled = config.enabled;
+  }
+
+  @override
+  void dispose() {
+    url.dispose();
+    model.dispose();
+    super.dispose();
+  }
+
+  OllamaConfig get _config => OllamaConfig(
+        baseUrl: url.text.trim(),
+        model: model.text.trim(),
+        enabled: enabled,
+      );
+
+  void _save() {
+    widget.state.setOllamaConfig(_config);
+    setState(() {
+      status = 'Saved. Open Assessment to score with Ollama.';
+      statusIsError = false;
+    });
+  }
+
+  Future<void> _test() async {
+    setState(() {
+      testing = true;
+      status = null;
+    });
+    try {
+      final models = await DemoRepository.testOllama(_config);
+      if (!mounted) return;
+      setState(() {
+        final installed = models.take(4).join(', ');
+        status = models.isEmpty
+            ? 'Connected to Ollama, but no models are installed.'
+            : 'Connected · $installed';
+        statusIsError = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        status = 'Could not reach Ollama. Check the URL and that the server '
+            'is running with OLLAMA_HOST=0.0.0.0.';
+        statusIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => testing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Score with Ollama on my laptop',
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.3,
+                          fontWeight: FontWeight.w600,
+                          color: palette.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'The bundled model is used when the laptop is off.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: palette.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Spacing.sm),
+                Switch.adaptive(
+                  value: enabled,
+                  onChanged: (value) => setState(() => enabled = value),
+                ),
+              ],
+            ),
+            const SizedBox(height: Spacing.md),
+            TextField(
+              key: const ValueKey('ollama-url'),
+              controller: url,
+              enabled: enabled,
+              autocorrect: false,
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Ollama base URL',
+                hintText: 'http://192.168.1.20:11434',
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+              ),
+            ),
+            const SizedBox(height: Spacing.sm),
+            TextField(
+              key: const ValueKey('ollama-model'),
+              controller: model,
+              enabled: enabled,
+              autocorrect: false,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                labelText: 'Model',
+                hintText: 'llama3.2',
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+              ),
+            ),
+            const SizedBox(height: Spacing.sm),
+            Text(
+              'Start Ollama so other devices can reach it with '
+              'OLLAMA_HOST=0.0.0.0 ollama serve. Android emulator: '
+              'http://10.0.2.2:11434. Phone: your laptop’s LAN IP.',
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.5,
+                color: palette.muted,
+              ),
+            ),
+            const SizedBox(height: Spacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _save,
+                    child: const Text('Save'),
+                  ),
+                ),
+                const SizedBox(width: Spacing.sm),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: enabled && !testing ? _test : null,
+                    child: testing
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: palette.muted,
+                            ),
+                          )
+                        : const Text('Test connection'),
+                  ),
+                ),
+              ],
+            ),
+            if (status != null) ...[
+              const SizedBox(height: Spacing.sm),
+              Text(
+                status!,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: statusIsError ? palette.negative : palette.positive,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

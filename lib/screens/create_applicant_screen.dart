@@ -273,8 +273,10 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
     };
 
     try {
-      final model = await DemoRepository.loadModel();
-      final assessment = model.assess(evidence);
+      final assessment = await DemoRepository.assess(
+        evidence,
+        widget.state.ollamaConfig,
+      );
       final hasScore = assessment.hasScore;
       final fullName = name.text.trim().replaceAll(RegExp(r'\s+'), ' ');
       final applicant = Applicant(
@@ -293,8 +295,12 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
             ? AssessmentPathway.trustScore
             : AssessmentPathway.alternative,
         records: const [],
-        positiveFactors: DemoRepository.positiveFactors(evidence),
-        negativeFactors: DemoRepository.negativeFactors(evidence),
+        positiveFactors: assessment.positiveFactors.isNotEmpty
+            ? assessment.positiveFactors
+            : DemoRepository.positiveFactors(evidence),
+        negativeFactors: assessment.negativeFactors.isNotEmpty
+            ? assessment.negativeFactors
+            : DemoRepository.negativeFactors(evidence),
         evidence: evidence,
         assessment: assessment,
       );
@@ -305,11 +311,16 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
       widget.state.addApplicant(applicant);
       widget.state.setTab(1);
       navigator.pop();
+      final engine = assessment.isOllama
+          ? 'Ollama'
+          : assessment.status == 'scored'
+              ? 'bundled model'
+              : 'evidence gate';
       messenger.showSnackBar(
         SnackBar(
           content: Text(
             hasScore
-                ? '$fullName created · TrustScore ${assessment.score}'
+                ? '$fullName created · TrustScore ${assessment.score} · $engine'
                 : '$fullName created · more evidence needed',
           ),
         ),

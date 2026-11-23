@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
+import 'demo_repository.dart';
 import 'liquid_glass.dart';
 import 'models.dart';
 import 'widgets.dart';
@@ -21,7 +22,10 @@ class OpenCredApp extends StatefulWidget {
 }
 
 class _OpenCredAppState extends State<OpenCredApp> {
-  late final DemoState state = DemoState(widget.applicants);
+  late final DemoState state = DemoState(
+    widget.applicants,
+    assessor: DemoRepository.assess,
+  );
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
         animation: state,
