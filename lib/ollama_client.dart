@@ -89,7 +89,7 @@ class OllamaException implements Exception {
 class OllamaClient {
   OllamaClient({
     http.Client? client,
-    this.timeout = const Duration(seconds: 30),
+    this.timeout = const Duration(seconds: 150),
   }) : _client = client ?? http.Client();
 
   final http.Client _client;
@@ -145,28 +145,10 @@ If the evidence is too sparse for a fair score, return
     final presentFeatures =
         evidence.values.where((value) => value != null).length;
     final userPrompt = _evidencePrompt(evidence);
-    final response = await _client
-        .post(
-          config.chatUri,
-          headers: const {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'model': config.resolvedModel,
-            'stream': false,
-            'format': 'json',
-            'options': {'temperature': 0},
-            'messages': [
-              {'role': 'system', 'content': _systemPrompt},
-              {'role': 'user', 'content': userPrompt},
-            ],
-          }),
-        )
-        .timeout(timeout);
+    final response = await _chat(config, userPrompt);
 
     if (response.statusCode != 200) {
-      throw OllamaException(
-        'Ollama returned HTTP ${response.statusCode}. '
-        'Check that the model "${config.resolvedModel}" is installed.',
-      );
+      throw OllamaException(_describeError(response, config));
     }
 
     final content = _messageContent(response.bodyBytes);
@@ -236,6 +218,80 @@ If the evidence is too sparse for a fair score, return
       for (final model in models)
         if (model is Map && model['name'] is String) model['name'] as String,
     ];
+  }
+
+  /// Sends the scoring request, relaxing optional flags the server does not
+  /// support. The MLX runner used by some local models returns
+  /// `501 structured output is unavailable` for `format: json`, and thinking
+  /// models spend far too long reasoning for an interactive score.
+  Future<http.Response> _chat(OllamaConfig config, String userPrompt) async {
+    const attempts = <Map<String, Object>>[
+      {'format': 'json', 'think': false},
+      {'think': false},
+      {},
+    ];
+    late http.Response response;
+    for (final extra in attempts) {
+      response = await _postChat(config, userPrompt, extra).timeout(timeout);
+      if (response.statusCode == 200 || !_shouldRetry(response)) {
+        return response;
+      }
+    }
+    return response;
+  }
+
+  Future<http.Response> _postChat(
+    OllamaConfig config,
+    String userPrompt,
+    Map<String, Object> extra,
+  ) =>
+      _client.post(
+        config.chatUri,
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'model': config.resolvedModel,
+          'stream': false,
+          'options': {
+            'temperature': 0,
+            // Bound the reply so a chatty model cannot hang the request.
+            'num_predict': 1024,
+          },
+          'messages': [
+            {'role': 'system', 'content': _systemPrompt},
+            {'role': 'user', 'content': userPrompt},
+          ],
+          ...extra,
+        }),
+      );
+
+  static bool _shouldRetry(http.Response response) {
+    final body = response.body.toLowerCase();
+    return body.contains('structured output') ||
+        body.contains('think') ||
+        body.contains('unknown field') ||
+        body.contains('unsupported');
+  }
+
+  static String _describeError(http.Response response, OllamaConfig config) {
+    var detail = '';
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded['error'] is String) {
+        detail = decoded['error'] as String;
+      }
+    } catch (_) {
+      // Non-JSON error body; fall back to the status code below.
+    }
+    final lower = detail.toLowerCase();
+    if (response.statusCode == 404 || lower.contains('not found')) {
+      return 'Model "${config.resolvedModel}" is not installed. '
+          'Pick one of the installed models in Settings → TrustScore model.';
+    }
+    if (lower.contains('structured output')) {
+      return 'This Ollama model does not support structured output.';
+    }
+    if (detail.isNotEmpty) return detail;
+    return 'Ollama returned HTTP ${response.statusCode}.';
   }
 
   static String _evidencePrompt(Map<String, double?> evidence) {

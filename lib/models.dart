@@ -196,14 +196,13 @@ class DemoState extends ChangeNotifier {
     try {
       final assessment = await assessor(evidence, ollamaConfig);
       _applyAssessment(applicantId, assessment);
-      if (assessment.status == 'scored' && !assessment.isOllama) {
-        ollamaMessage =
-            'Ollama is unreachable. The bundled model scored this profile.';
+      if (!assessment.isOllama && assessment.fallbackReason != null) {
+        ollamaMessage = 'Ollama unavailable — ${assessment.fallbackReason} '
+            'The bundled model scored this profile.';
       }
-    } catch (_) {
+    } catch (error) {
       _ollamaAttempted.remove(applicantId);
-      ollamaMessage =
-          'Ollama is unreachable. The bundled model scored this profile.';
+      ollamaMessage = 'Ollama unavailable — $error';
     } finally {
       ollamaBusy = false;
       notifyListeners();

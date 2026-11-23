@@ -77,6 +77,9 @@ Random Forest so the offline demo still works.
    - Same machine (desktop build): `http://127.0.0.1:11434`
 
    Then set the model name (for example `llama3.2`) and tap **Test connection**.
+   The app lists the models installed on the laptop and runs a probe score.
+   Tap an installed model to use it — the model in the field must be installed,
+   otherwise `/api/chat` cannot score.
 
 The same values can be baked in at build time:
 

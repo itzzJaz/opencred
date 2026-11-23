@@ -122,6 +122,16 @@ class _OllamaCardState extends State<_OllamaCard> {
   bool testing = false;
   String? status;
   bool statusIsError = false;
+  List<String> installedModels = const [];
+
+  static const _probeEvidence = <String, double?>{
+    'utility_payment_consistency_pct': 90,
+    'rent_payment_reliability_pct': 85,
+    'verified_income_regularity_pct': 80,
+    'previous_loan_repayment_history': 2,
+    'missed_payments_count_12m': 0,
+    'existing_financial_obligations_ratio': .25,
+  };
 
   @override
   void initState() {
@@ -156,28 +166,84 @@ class _OllamaCardState extends State<_OllamaCard> {
   Future<void> _test() async {
     setState(() {
       testing = true;
-      status = null;
+      status = 'Checking the laptop…';
+      statusIsError = false;
     });
     try {
       final models = await DemoRepository.testOllama(_config);
       if (!mounted) return;
-      setState(() {
-        final installed = models.take(4).join(', ');
-        status = models.isEmpty
-            ? 'Connected to Ollama, but no models are installed.'
-            : 'Connected · $installed';
-        statusIsError = false;
-      });
-    } catch (_) {
+      setState(() => installedModels = models);
+
+      if (models.isEmpty) {
+        setState(() {
+          status = 'Connected, but no models are installed. '
+              'Run: ollama pull gemma4-air';
+          statusIsError = true;
+        });
+        return;
+      }
+
+      final chosen = _config.resolvedModel;
+      if (!_isInstalled(models, chosen)) {
+        setState(() {
+          status = 'Connected. "$chosen" is not installed — '
+              'tap an installed model below.';
+          statusIsError = true;
+        });
+        return;
+      }
+
+      setState(() => status = 'Connected. Running a scoring test…');
+      final assessment = await DemoRepository.assess(_probeEvidence, _config);
+      if (!mounted) return;
+      if (assessment.isOllama) {
+        setState(() {
+          status = 'Connected · $chosen scored a probe at '
+              '${assessment.score}/1000.';
+          statusIsError = false;
+        });
+      } else {
+        setState(() {
+          status = 'Connected, but scoring failed: '
+              '${assessment.fallbackReason ?? 'unknown error'}';
+          statusIsError = true;
+        });
+      }
+    } catch (error) {
       if (!mounted) return;
       setState(() {
-        status = 'Could not reach Ollama. Check the URL and that the server '
-            'is running with OLLAMA_HOST=0.0.0.0.';
+        status = 'Could not reach Ollama: $error. Check the URL and that the '
+            'server is running with OLLAMA_HOST=0.0.0.0.';
         statusIsError = true;
       });
     } finally {
       if (mounted) setState(() => testing = false);
     }
+  }
+
+  void _useModel(String name) {
+    setState(() {
+      model.text = name;
+      enabled = true;
+    });
+    _save();
+    if (!mounted) return;
+    setState(() {
+      status = 'Using $name on your laptop.';
+      statusIsError = false;
+    });
+  }
+
+  static bool _isInstalled(List<String> models, String chosen) {
+    if (chosen.isEmpty) return false;
+    for (final name in models) {
+      if (name == chosen ||
+          name == '$chosen:latest' ||
+          chosen == '$name:latest') {
+        return true;
+      }
+    }
+    return false;
   }
 
   @override
@@ -261,6 +327,37 @@ class _OllamaCardState extends State<_OllamaCard> {
                 color: palette.muted,
               ),
             ),
+            if (installedModels.isNotEmpty) ...[
+              const SizedBox(height: Spacing.md),
+              Text(
+                'Installed models',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.3,
+                  fontWeight: FontWeight.w600,
+                  color: palette.ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final name in installedModels)
+                    ActionChip(
+                      label: Text(
+                        name,
+                        style: TextStyle(fontSize: 12, color: palette.ink),
+                      ),
+                      backgroundColor: palette.raised,
+                      side: BorderSide(color: palette.hairline),
+                      visualDensity: VisualDensity.compact,
+                      onPressed:
+                          enabled && !testing ? () => _useModel(name) : null,
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: Spacing.md),
             Row(
               children: [

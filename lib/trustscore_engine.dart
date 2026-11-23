@@ -23,6 +23,7 @@ class TrustScoreEngine {
       return local.assess(evidence);
     }
 
+    String? fallbackReason;
     if (config.enabled) {
       final ollama = client ?? OllamaClient();
       try {
@@ -31,7 +32,10 @@ class TrustScoreEngine {
           evidence: evidence,
           requiredFeatures: local.requiredFeatures,
         );
-      } catch (_) {
+      } catch (error) {
+        fallbackReason = error is OllamaException
+            ? error.message
+            : 'Ollama could not be reached.';
         // The demo is offline-first: fall through to the bundled model and
         // let the UI label the result as a local fallback.
       } finally {
@@ -39,6 +43,9 @@ class TrustScoreEngine {
       }
     }
 
-    return local.assess(evidence);
+    final result = local.assess(evidence);
+    return fallbackReason == null
+        ? result
+        : result.withFallbackReason(fallbackReason);
   }
 }

@@ -14,6 +14,7 @@ class TrustScoreAssessment {
     this.engine = 'bundled-model',
     this.positiveFactors = const [],
     this.negativeFactors = const [],
+    this.fallbackReason,
   });
 
   final String status;
@@ -30,8 +31,27 @@ class TrustScoreAssessment {
   final List<String> positiveFactors;
   final List<String> negativeFactors;
 
+  /// Set when Ollama was enabled but could not score this profile, so the
+  /// bundled model produced the result instead.
+  final String? fallbackReason;
+
   bool get hasScore => status == 'scored' && score != null;
   bool get isOllama => engine == 'ollama';
+
+  TrustScoreAssessment withFallbackReason(String reason) =>
+      TrustScoreAssessment(
+        status: status,
+        modelVersion: modelVersion,
+        score: score,
+        probability: probability,
+        presentFeatures: presentFeatures,
+        requiredFeatures: requiredFeatures,
+        limitation: limitation,
+        engine: engine,
+        positiveFactors: positiveFactors,
+        negativeFactors: negativeFactors,
+        fallbackReason: reason,
+      );
 }
 
 class TrustScoreModel {

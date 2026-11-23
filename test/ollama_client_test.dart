@@ -72,6 +72,69 @@ void main() {
     expect(result.positiveFactors, ['Regular verified income']);
   });
 
+  test('retries without structured output when the server rejects it',
+      () async {
+    final requests = <Map<String, dynamic>>[];
+    final client = OllamaClient(
+      client: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        requests.add(body);
+        if (body.containsKey('format')) {
+          return http.Response(
+            '{"error":"structured output is unavailable"}',
+            501,
+          );
+        }
+        return http.Response(
+          jsonEncode({
+            'message': {
+              'content': '{"status":"scored","score":701}',
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final result = await client.assess(
+      config: _config,
+      evidence: _evidence(),
+      requiredFeatures: 4,
+    );
+
+    expect(requests, hasLength(2));
+    expect(requests.first['format'], 'json');
+    expect(requests.first['think'], isFalse);
+    expect(requests.last.containsKey('format'), isFalse);
+    expect(requests.last['think'], isFalse);
+    expect(result.score, 701);
+    expect(result.isOllama, isTrue);
+  });
+
+  test('explains a model that is not installed', () async {
+    final client = OllamaClient(
+      client: MockClient((_) async => http.Response(
+            '{"error":"model \'llama3.2\' not found"}',
+            404,
+          )),
+    );
+
+    expect(
+      () => client.assess(
+        config: _config,
+        evidence: _evidence(),
+        requiredFeatures: 4,
+      ),
+      throwsA(
+        isA<OllamaException>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('not installed'), contains('llama3.2')),
+        ),
+      ),
+    );
+  });
+
   test('tolerates a fenced JSON reply', () async {
     final client = OllamaClient(
       client: MockClient((_) async => http.Response(
