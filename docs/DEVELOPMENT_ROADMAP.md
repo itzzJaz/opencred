@@ -64,7 +64,7 @@ The offline Flutter frontend now covers the approved demonstration surface: welc
 ### 5. AI model development
 
 - **Objective:** Evaluate a preliminary model without claiming real-world validity.
-- **Work:** preprocessing, missingness-aware features, Random Forest and Extra Trees comparison, holdout evaluation, calibration, model artifact metadata.
+- **Work:** evaluate Ollama scoring quality for each deployment context, document prompt and model versions, test missingness and description-only inputs, and review fairness before use.
 - **Dependencies:** Synthetic data and model contract.
 - **Testing:** Reproducible training, metric bounds, leakage checks, missing-data tests, baseline comparison.
 - **Done when:** A versioned model can produce a score or an explicit no-score result with limitations.

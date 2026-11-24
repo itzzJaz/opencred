@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../models.dart';
+import '../motion_widgets.dart';
 import '../widgets.dart';
 
 class InstitutionScreen extends StatelessWidget {
@@ -13,7 +14,7 @@ class InstitutionScreen extends StatelessWidget {
     final palette = Palette.of(context);
     final applicant = state.selected;
 
-    return ListView(
+    return ScrollRevealList(
       padding: const EdgeInsets.fromLTRB(
         Layout.pageGutter,
         Spacing.lg,

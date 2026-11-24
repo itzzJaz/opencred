@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Spacing scale. Every margin, padding and gap is a multiple of 4.
-/// A 2px step is only allowed for an optical nudge inside a control.
+/// Spacing scale on a strict 4px grid.
 abstract final class Spacing {
   static const double xxs = 4;
   static const double xs = 8;
@@ -9,30 +8,26 @@ abstract final class Spacing {
   static const double md = 16;
   static const double lg = 24;
   static const double xl = 32;
+  static const double xxl = 48;
 }
 
-/// Corner geometry. Controls are capsules, containers are soft rounded rects.
+/// Razor-sharp geometric corner radii (4px flat architectural / motorsport style).
 abstract final class Radii {
-  static const double card = 22;
-  static const double field = 12;
-  static const double row = 8;
-  static const double capsule = 1000;
+  static const double card = 4;
+  static const double field = 4;
+  static const double row = 2;
+  static const double capsule = 4;
 }
 
 abstract final class Layout {
-  static const double pageGutter = 24;
-
-  /// Height of one destination inside the floating nav pill.
-  static const double navItemHeight = 56;
-
-  /// Space reserved at the end of every scrolling canvas for the nav pill.
-  static const double pageBottomInset = 104;
+  static const double pageGutter = 20;
+  static const double navItemHeight = 54;
+  static const double pageBottomInset = 96;
 }
 
-/// The product's palette: warm ivory paper, deep emerald ink and a champagne
-/// gold detail. The proportions are deliberate: ivory carries the canvas,
-/// emerald carries text and primary surfaces, gold is used only for small
-/// marks, the score arc and focus states.
+/// Flat, razor-sharp motorsport/Swiss editorial palette.
+/// Editorial Paper Off-White (#F2F2F0), Matte Dark Ink (#111214),
+/// Flat Architectural Grey (#E6E6E2), and UN SDG 1 Crimson (#E5243B).
 @immutable
 class Palette {
   const Palette({
@@ -60,19 +55,14 @@ class Palette {
   final Color surface;
   final Color raised;
 
-  /// Borders are a quiet hairline, never a colored stroke.
+  /// Clean 1px hairlines separating geometric flat surfaces.
   final Color hairline;
   final Color ink;
-
-  /// The colour that sits on top of [ink] surfaces: primary buttons, the
-  /// selected nav item and the selected filter pill. In dark mode [ink] is
-  /// ivory, so this is the deep-emerald canvas, not another ivory.
   final Color onInk;
   final Color secondary;
   final Color muted;
 
-  /// Champagne gold. Never body text on ivory; it is a foil mark, not a hue
-  /// for paragraphs.
+  /// UN SDG 1 Crimson (#E5243B) signature accent.
   final Color accent;
   final Color onAccent;
   final Color accentTint;
@@ -80,7 +70,7 @@ class Palette {
   final Color warning;
   final Color negative;
 
-  /// The one dark surface in the app, used by the overview statement card.
+  /// Full-bleed matte ink band.
   final Color hero;
   final Color onHero;
 
@@ -91,52 +81,49 @@ class Palette {
 
   static const light = Palette(
     brightness: Brightness.light,
-    canvas: Color(0xFFF6F4ED),
-    surface: Color(0xFFFCFAF4),
-    raised: Color(0xFFEDE9DD),
-    hairline: Color(0x1A173B35),
-    ink: Color(0xFF173B35),
-    onInk: Color(0xFFF6F4ED),
-    secondary: Color(0xFF4B615A),
-    muted: Color(0xFF6D7F78),
-    accent: Color(0xFFD7A94B),
-    onAccent: Color(0xFF173B35),
-    accentTint: Color(0x33D7A94B),
-    positive: Color(0xFF2F6A57),
-    warning: Color(0xFFA87B28),
-    negative: Color(0xFFA6483A),
-    hero: Color(0xFF173B35),
-    onHero: Color(0xFFF6F4ED),
+    canvas: Color(0xFFF2F2F0), // Editorial Paper Off-White
+    surface: Color(0xFFE6E6E2), // Flat Architectural Grey
+    raised: Color(0xFFDADAD4),
+    hairline: Color(0x1F111214), // 12% ink hairline
+    ink: Color(0xFF111214), // Matte Dark Ink
+    onInk: Color(0xFFF2F2F0),
+    secondary: Color(0xFF55575E),
+    muted: Color(0xFF7E8088),
+    accent: Color(0xFFE5243B), // UN SDG 1 Crimson
+    onAccent: Color(0xFFFFFFFF),
+    accentTint: Color(0x26E5243B),
+    positive: Color(0xFF1B6A4C), // High contrast forest emerald
+    warning: Color(0xFF5375A8),
+    negative: Color(0xFFE5243B),
+    hero: Color(0xFF111214),
+    onHero: Color(0xFFF2F2F0),
   );
 
   static const dark = Palette(
     brightness: Brightness.dark,
-    canvas: Color(0xFF0C1B18),
-    surface: Color(0xFF102420),
-    raised: Color(0xFF17302A),
-    hairline: Color(0x29F2EFE4),
-    ink: Color(0xFFF2EFE4),
-    onInk: Color(0xFF0C1B18),
-    secondary: Color(0xFFA8B8B0),
-    muted: Color(0xFF80938B),
-    accent: Color(0xFFD9B264),
-    onAccent: Color(0xFF173B35),
-    accentTint: Color(0x33D9B264),
-    positive: Color(0xFF74B79B),
-    warning: Color(0xFFD9B264),
-    negative: Color(0xFFD9887A),
-    hero: Color(0xFF091512),
-    onHero: Color(0xFFF2EFE4),
+    canvas: Color(0xFF111214), // Matte Dark Ink
+    surface: Color(0xFF1B1C20),
+    raised: Color(0xFF25272D),
+    hairline: Color(0x1FFFFFFF), // 12% white hairline
+    ink: Color(0xFFF2F2F0), // Paper Off-White
+    onInk: Color(0xFF111214),
+    secondary: Color(0xFFA0A3AD),
+    muted: Color(0xFF6E717B),
+    accent: Color(0xFFE5243B), // UN SDG 1 Crimson
+    onAccent: Color(0xFFFFFFFF),
+    accentTint: Color(0x33E5243B),
+    positive: Color(0xFF34D399),
+    warning: Color(0xFF91B8EF),
+    negative: Color(0xFFF87171),
+    hero: Color(0xFF090A0C),
+    onHero: Color(0xFFF2F2F0),
   );
 }
 
 class OpenCredTheme {
   static ThemeData light() => _build(Palette.light);
-
   static ThemeData dark() => _build(Palette.dark);
 
-  /// Hierarchy comes from size and color. Nothing goes past w600, and every
-  /// style carries tabular figures so scores and metrics line up in a column.
   static TextStyle _style(
     Palette p,
     double size,
@@ -179,16 +166,17 @@ class OpenCredTheme {
     );
 
     final text = TextTheme(
-      headlineMedium: _style(p, 30, 1.15, FontWeight.w600, -0.6),
-      headlineSmall: _style(p, 22, 1.2, FontWeight.w600, -0.3),
-      titleLarge: _style(p, 20, 1.25, FontWeight.w600, -0.2),
-      titleMedium: _style(p, 16, 1.3, FontWeight.w600),
-      bodyLarge: _style(p, 16, 1.45, FontWeight.w400),
-      bodyMedium: _style(p, 14, 1.45, FontWeight.w400),
-      bodySmall: _style(p, 13, 1.4, FontWeight.w400),
-      labelLarge: _style(p, 15, 1.2, FontWeight.w600),
-      labelMedium: _style(p, 13, 1.2, FontWeight.w500),
-      labelSmall: _style(p, 12, 1.33, FontWeight.w500),
+      headlineLarge: _style(p, 36, 0.98, FontWeight.w800, -1.2),
+      headlineMedium: _style(p, 28, 1.04, FontWeight.w700, -0.8),
+      headlineSmall: _style(p, 22, 1.12, FontWeight.w700, -0.4),
+      titleLarge: _style(p, 19, 1.2, FontWeight.w700, -0.2),
+      titleMedium: _style(p, 15, 1.25, FontWeight.w600),
+      bodyLarge: _style(p, 15, 1.45, FontWeight.w400),
+      bodyMedium: _style(p, 13.5, 1.45, FontWeight.w400),
+      bodySmall: _style(p, 12, 1.4, FontWeight.w400),
+      labelLarge: _style(p, 14, 1.2, FontWeight.w700, 0.4),
+      labelMedium: _style(p, 12, 1.2, FontWeight.w600, 0.2),
+      labelSmall: _style(p, 10.5, 1.3, FontWeight.w600, 0.5),
     );
 
     return ThemeData(
@@ -198,15 +186,16 @@ class OpenCredTheme {
       scaffoldBackgroundColor: p.canvas,
       textTheme: text.apply(bodyColor: p.ink, displayColor: p.ink),
       iconTheme: IconThemeData(color: p.secondary, size: 20),
+      // Flat card: 0 elevation, 0 shadow, 4px minimal radius, 1px crisp hairline
       cardTheme: CardThemeData(
         color: p.surface,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
+        shape: ContinuousRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.card),
-          side: BorderSide(color: p.hairline),
+          side: BorderSide(color: p.hairline, width: 1),
         ),
       ),
       dividerTheme: DividerThemeData(
@@ -230,8 +219,10 @@ class OpenCredTheme {
           minimumSize: const Size(0, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20),
           elevation: 0,
-          textStyle: _style(p, 15, 1.2, FontWeight.w600),
-          shape: const StadiumBorder(),
+          textStyle: _style(p, 14, 1.2, FontWeight.w700, 0.3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.card),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -239,8 +230,10 @@ class OpenCredTheme {
           foregroundColor: p.ink,
           minimumSize: const Size(0, 40),
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          textStyle: _style(p, 14, 1.2, FontWeight.w600),
-          shape: const StadiumBorder(),
+          textStyle: _style(p, 13.5, 1.2, FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.card),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -250,12 +243,12 @@ class OpenCredTheme {
           horizontal: Spacing.md,
           vertical: 14,
         ),
-        hintStyle: TextStyle(color: p.muted, fontSize: 15),
-        labelStyle: TextStyle(color: p.secondary, fontSize: 15),
+        hintStyle: TextStyle(color: p.muted, fontSize: 14),
+        labelStyle: TextStyle(color: p.secondary, fontSize: 14),
         floatingLabelStyle: TextStyle(
           color: p.ink,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
         border: _fieldBorder(p.hairline),
         enabledBorder: _fieldBorder(p.hairline),
@@ -277,14 +270,14 @@ class OpenCredTheme {
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: p.positive,
+        color: p.accent,
         linearTrackColor: p.raised,
         circularTrackColor: p.raised,
       ),
       textSelectionTheme: TextSelectionThemeData(
-        cursorColor: p.ink,
+        cursorColor: p.accent,
         selectionColor: p.accent.withValues(alpha: 0.28),
-        selectionHandleColor: p.ink,
+        selectionHandleColor: p.accent,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: Colors.transparent,
@@ -294,10 +287,10 @@ class OpenCredTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: p.ink,
-        contentTextStyle: TextStyle(color: p.onInk, fontSize: 14),
+        contentTextStyle: TextStyle(color: p.onInk, fontSize: 13.5),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.field),
+          borderRadius: BorderRadius.circular(Radii.card),
         ),
       ),
       splashColor: p.ink.withValues(alpha: 0.04),

@@ -5,28 +5,32 @@ import 'package:flutter/services.dart';
 import 'models.dart';
 import 'ollama_client.dart';
 import 'trustscore_engine.dart';
-import 'trustscore_model.dart';
+import 'trustscore_assessment.dart';
+import 'scoring_storage.dart';
 
 class DemoRepository {
-  static TrustScoreModel? _model;
+  static const _scoringStorage = ScoringStorage();
 
-  /// The bundled model is parsed once and reused for the seeded profiles and
-  /// for any applicant created during a session.
-  static Future<TrustScoreModel> loadModel() async =>
-      _model ??= await TrustScoreModel.load();
-
-  /// Scores one applicant through the laptop's Ollama server, falling back to
-  /// the bundled model when the server is off or unreachable.
+  /// Reuses a profile-specific saved result, otherwise scores with Ollama.
   static Future<TrustScoreAssessment> assess(
-    Map<String, double?> evidence,
-    OllamaConfig config,
-  ) async {
-    final model = await loadModel();
-    return TrustScoreEngine.assess(
-      local: model,
+      Map<String, double?> evidence, OllamaConfig config,
+      [String? description, bool force = false]) async {
+    final hash = ScoringStorage.profileHash(evidence, description: description);
+    final saved = force ? null : await _scoringStorage.read(hash);
+    if (saved != null) {
+      return saved.toAssessment(
+        evidence.values.where((value) => value != null).length,
+      );
+    }
+    final result = await TrustScoreEngine.assessDetailed(
       evidence: evidence,
       config: config,
+      description: description,
     );
+    if (result.cache != null) {
+      await _scoringStorage.write(hash, result.cache!);
+    }
+    return result.assessment;
   }
 
   /// Confirms the app can reach Ollama and returns the installed models.
@@ -40,7 +44,6 @@ class DemoRepository {
   }
 
   static Future<List<Applicant>> loadApplicants() async {
-    final model = await loadModel();
     final csv = await rootBundle.loadString('assets/data/applicants.csv');
     final rows = _parseCsv(csv);
     if (rows.isEmpty) {
@@ -48,7 +51,7 @@ class DemoRepository {
           'assets/data/applicants.csv contains no applicants');
     }
 
-    return rows.asMap().entries.map((entry) {
+    return Future.wait(rows.asMap().entries.map((entry) async {
       final values = entry.value;
       final id = values['applicant_id'];
       if (id == null || id.isEmpty) {
@@ -58,7 +61,19 @@ class DemoRepository {
       final evidence = {
         for (final feature in _features) feature: _number(values[feature]),
       };
-      final assessment = model.assess(evidence);
+      final cache = await _scoringStorage.read(
+        ScoringStorage.profileHash(evidence),
+      );
+      final assessment = cache == null
+          ? TrustScoreAssessment(
+              status: 'insufficient_evidence',
+              modelVersion: 'ollama/${OllamaConfig.defaultModel}',
+              presentFeatures: evidence.values.where((v) => v != null).length,
+              limitation: 'This profile has not been scored by Ollama yet.',
+            )
+          : cache.toAssessment(
+              evidence.values.where((v) => v != null).length,
+            );
       final hasScore = assessment.hasScore;
       final name = _nameFor(entry.key);
       return Applicant(
@@ -82,7 +97,7 @@ class DemoRepository {
         evidence: evidence,
         assessment: assessment,
       );
-    }).toList();
+    }).toList());
   }
 
   static const _features = [

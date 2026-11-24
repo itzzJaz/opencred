@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../models.dart';
+import '../motion_widgets.dart';
 import '../widgets.dart';
 
 class AssistanceScreen extends StatefulWidget {
@@ -19,7 +20,7 @@ class _AssistanceScreenState extends State<AssistanceScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(context);
-    return ListView(
+    return ScrollRevealList(
       padding: const EdgeInsets.fromLTRB(
         Layout.pageGutter,
         Spacing.lg,

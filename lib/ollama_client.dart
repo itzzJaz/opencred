@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'trustscore_model.dart';
+import 'models.dart';
+import 'trustscore_assessment.dart';
 
 /// Connection settings for the Ollama server that runs on the operator's
 /// laptop. They can be set at build time with
@@ -21,11 +22,11 @@ class OllamaConfig {
 
   static const defaultBaseUrl = String.fromEnvironment(
     'OLLAMA_BASE_URL',
-    defaultValue: 'http://127.0.0.1:11434',
+    defaultValue: 'http://192.168.1.236:11434',
   );
   static const defaultModel = String.fromEnvironment(
     'OLLAMA_MODEL',
-    defaultValue: 'llama3.2',
+    defaultValue: 'gemma4:e2b-mlx',
   );
   static const defaultEnabled = bool.fromEnvironment(
     'OLLAMA_ENABLED',
@@ -115,12 +116,17 @@ class OllamaClient {
   static const _systemPrompt = '''
 You are the TrustScore assessment model in a financial-inclusion prototype.
 You produce a supplementary, explainable financial-behaviour assessment from
-synthetic evidence.
+the supplied financial evidence and the applicant's plain-English description.
 
 Rules:
 - Reply with one JSON object only. No markdown fences, no prose around it.
 - Never approve or reject a loan, and never state affordability.
 - Missing evidence must not be treated as negative behaviour.
+- A concrete plain-English description can be sufficient evidence by itself.
+- When numerical fields are empty, assess only relevant facts explicitly stated
+  in the description. Do not require numbers when the description is informative.
+- If a description is present, do not return insufficient_evidence solely
+  because numerical fields are empty.
 - The score is an integer from 0 to 1000, where higher means more consistent
   and verifiable financial behaviour.
 - Use only the evidence provided. Do not invent facts.
@@ -130,6 +136,7 @@ Return exactly this shape:
 {"status":"scored","score":<integer 0-1000>,"probability":<number 0-1>,
 "positive_factors":[<up to 3 short strings>],
 "negative_factors":[<up to 3 short strings>],
+"judge_explanation":"<exactly 2 concise sentences explaining the score>",
 "limitation":"<one short sentence>"}
 
 If the evidence is too sparse for a fair score, return
@@ -137,66 +144,100 @@ If the evidence is too sparse for a fair score, return
 "negative_factors":[],"limitation":"<one short sentence>"}
 ''';
 
-  Future<TrustScoreAssessment> assess({
+  /// Scores the evidence 3 times with Ollama and returns the averaged result.
+  /// Returns a list of 3 individual assessments plus the averaged cache.
+  Future<({List<TrustScoreAssessment> runs, OllamaScoreCache cache})>
+      assessTriple({
     required OllamaConfig config,
     required Map<String, double?> evidence,
-    required int requiredFeatures,
+    String? description,
   }) async {
     final presentFeatures =
         evidence.values.where((value) => value != null).length;
-    final userPrompt = _evidencePrompt(evidence);
-    final response = await _chat(config, userPrompt);
+    final userPrompt = _evidencePrompt(evidence, description: description);
+    final runs = <TrustScoreAssessment>[];
 
-    if (response.statusCode != 200) {
-      throw OllamaException(_describeError(response, config));
-    }
+    for (var i = 0; i < 3; i++) {
+      final response = await _chat(config, userPrompt);
 
-    final content = _messageContent(response.bodyBytes);
-    final json = _decodeJsonObject(content);
-    final version = 'ollama/${config.resolvedModel}';
-    final limitation = (json['limitation'] as String?)?.trim();
+      if (response.statusCode != 200) {
+        throw OllamaException(_describeError(response, config));
+      }
 
-    final rawStatus = (json['status'] as String?)?.trim().toLowerCase();
-    if (rawStatus == 'insufficient_evidence' || rawStatus == 'insufficient') {
-      return TrustScoreAssessment(
-        status: 'insufficient_evidence',
+      final content = _messageContent(response.bodyBytes);
+      final json = _decodeJsonObject(content);
+      final version = 'ollama/${config.resolvedModel}';
+      final limitation = (json['limitation'] as String?)?.trim();
+
+      final rawStatus = (json['status'] as String?)?.trim().toLowerCase();
+      if (rawStatus == 'insufficient_evidence' || rawStatus == 'insufficient') {
+        runs.add(TrustScoreAssessment(
+          status: 'insufficient_evidence',
+          modelVersion: version,
+          presentFeatures: presentFeatures,
+          limitation: limitation?.isNotEmpty == true
+              ? limitation!
+              : 'Missing evidence is not treated as negative financial behaviour.',
+        ));
+        continue;
+      }
+
+      final rawScore = _toDouble(json['score'] ?? json['trust_score']);
+      if (rawScore == null) {
+        throw const OllamaException(
+            'Ollama did not return a numeric trust score.');
+      }
+      final score = rawScore.round().clamp(0, 1000);
+      final probability =
+          (_toDouble(json['probability']) ?? score / 1000).clamp(0.0, 1.0);
+
+      runs.add(TrustScoreAssessment(
+        status: 'scored',
         modelVersion: version,
+        score: score,
+        probability: probability.toDouble(),
         presentFeatures: presentFeatures,
-        requiredFeatures: requiredFeatures,
         limitation: limitation?.isNotEmpty == true
             ? limitation!
-            : 'Missing evidence is not treated as negative financial behaviour.',
-        engine: 'ollama',
-      );
+            : 'Supplementary output from a local Ollama model; '
+                'not a lending or affordability decision.',
+        positiveFactors: _stringList(
+          json['positive_factors'] ?? json['positiveFactors'],
+        ),
+        negativeFactors: _stringList(
+          json['negative_factors'] ?? json['negativeFactors'],
+        ),
+        judgeExplanation: (json['judge_explanation'] ??
+                json['judgeExplanation'] ??
+                '')
+            .toString()
+            .trim(),
+      ));
     }
 
-    final rawScore = _toDouble(json['score'] ?? json['trust_score']);
-    if (rawScore == null) {
+    if (runs.length != 3 || runs.any((assessment) => !assessment.hasScore)) {
       throw const OllamaException(
-          'Ollama did not return a numeric trust score.');
+          'Ollama did not produce scores in all 3 scoring runs.');
     }
-    final score = rawScore.round().clamp(0, 1000);
-    final probability =
-        (_toDouble(json['probability']) ?? score / 1000).clamp(0.0, 1.0);
 
-    return TrustScoreAssessment(
-      status: 'scored',
-      modelVersion: version,
-      score: score,
-      probability: probability.toDouble(),
-      presentFeatures: presentFeatures,
-      requiredFeatures: requiredFeatures,
-      limitation: limitation?.isNotEmpty == true
-          ? limitation!
-          : 'Supplementary output from a local Ollama model; '
-              'not a lending or affordability decision.',
-      engine: 'ollama',
-      positiveFactors: _stringList(
-        json['positive_factors'] ?? json['positiveFactors'],
-      ),
-      negativeFactors: _stringList(
-        json['negative_factors'] ?? json['negativeFactors'],
-      ),
+    final cache = OllamaScoreCache.fromAssessments(
+        runs, 'ollama/${config.resolvedModel}');
+    return (runs: runs, cache: cache);
+  }
+
+  /// Legacy single-run assess for backwards compatibility.
+  Future<TrustScoreAssessment> assess({
+    required OllamaConfig config,
+    required Map<String, double?> evidence,
+    String? description,
+  }) async {
+    final result = await assessTriple(
+      config: config,
+      evidence: evidence,
+      description: description,
+    );
+    return result.cache.toAssessment(
+      evidence.values.where((value) => value != null).length,
     );
   }
 
@@ -294,15 +335,23 @@ If the evidence is too sparse for a fair score, return
     return 'Ollama returned HTTP ${response.statusCode}.';
   }
 
-  static String _evidencePrompt(Map<String, double?> evidence) {
-    final buffer = StringBuffer('Synthetic applicant evidence:\n');
+  static String _evidencePrompt(Map<String, double?> evidence,
+      {String? description}) {
+    final buffer = StringBuffer('Applicant financial evidence:\n');
     for (final entry in evidence.entries) {
-      final description =
+      if (entry.value == null) continue;
+      final label =
           _featureDescriptions[entry.key] ?? entry.key.replaceAll('_', ' ');
-      final value = entry.value == null
-          ? 'missing (do not treat as negative)'
-          : _formatValue(entry.key, entry.value!);
-      buffer.writeln('- $description: $value');
+      buffer.writeln('- $label: ${_formatValue(entry.key, entry.value!)}');
+    }
+    if (description != null && description.trim().isNotEmpty) {
+      buffer
+        ..writeln('\nApplicant description (plain English):')
+        ..writeln(description.trim());
+    }
+    if (evidence.values.every((value) => value == null) &&
+        (description == null || description.trim().isEmpty)) {
+      buffer.writeln('- No financial evidence provided.');
     }
     buffer.write('\nReturn the JSON assessment object now.');
     return buffer.toString();

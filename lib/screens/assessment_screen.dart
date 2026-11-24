@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../models.dart';
+import '../motion_widgets.dart';
 import '../ollama_client.dart';
 import '../widgets.dart';
+import 'create_applicant_screen.dart';
 
-/// The six fields the bundled model reads, in plain language. Missing values
-/// stay visible: an evidence gap is the point of the alternative pathway.
+/// The six optional numeric evidence fields, in plain language.
 const _evidenceFields = [
   ('utility_payment_consistency_pct', 'Utility payments'),
   ('rent_payment_reliability_pct', 'Rent reliability'),
@@ -68,7 +69,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
-    return ListView(
+    return ScrollRevealList(
       padding: const EdgeInsets.fromLTRB(
         Layout.pageGutter,
         Spacing.lg,
@@ -86,7 +87,155 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         ...(state.selected.hasScore
             ? [_TrustScoreCard(applicant: state.selected, state: state)]
             : [_AlternativeCard(applicant: state.selected)]),
+        const SizedBox(height: Spacing.md),
+        _ConsensusCard(applicant: state.selected, state: state),
       ],
+    );
+  }
+}
+
+class _ConsensusCard extends StatelessWidget {
+  const _ConsensusCard({required this.applicant, required this.state});
+  final Applicant applicant;
+  final DemoState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    final assessment = applicant.assessment;
+    final scores = assessment?.runScores ?? const <int>[];
+    final hasRuns = scores.length == 3;
+    final spread =
+        hasRuns ? scores.reduce(math.max) - scores.reduce(math.min) : 0;
+    final variance = spread <= 25
+        ? 'Low variance'
+        : spread <= 75
+            ? 'Medium variance'
+            : 'High variance';
+    final badgeColor = spread <= 25
+        ? palette.positive
+        : spread <= 75
+            ? palette.warning
+            : palette.negative;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          tilePadding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+          childrenPadding: const EdgeInsets.fromLTRB(
+            Spacing.lg,
+            0,
+            Spacing.lg,
+            Spacing.lg,
+          ),
+          title: Text(
+            'AI Consensus & Judge Breakdown',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: palette.ink,
+            ),
+          ),
+          children: [
+            if (hasRuns) ...[
+              for (var i = 0; i < scores.length; i++)
+                _ConsensusScoreRow(
+                    label: 'Ollama run ${i + 1}', score: scores[i]),
+              _ConsensusScoreRow(
+                label: 'Final averaged score',
+                score: assessment!.score!,
+                strong: true,
+              ),
+              const SizedBox(height: Spacing.sm),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: StatusLabel(variance, color: badgeColor),
+              ),
+            ] else
+              Padding(
+                padding: const EdgeInsets.only(bottom: Spacing.md),
+                child: Text(
+                  'Three Ollama runs will appear here after scoring.',
+                  style: TextStyle(color: palette.secondary, height: 1.4),
+                ),
+              ),
+            const SizedBox(height: Spacing.md),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Judge explanation',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: palette.ink,
+                ),
+              ),
+            ),
+            const SizedBox(height: Spacing.xs),
+            Text(
+              assessment?.judgeExplanation.isNotEmpty == true
+                  ? assessment!.judgeExplanation
+                  : 'Ollama’s two-sentence explanation will appear here after scoring.',
+              style: TextStyle(color: palette.secondary, height: 1.45),
+            ),
+            const SizedBox(height: Spacing.md),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: state.ollamaBusy || !state.ollamaConfig.enabled
+                    ? null
+                    : () => state.assessWithOllama(applicant.id, force: true),
+                icon: state.ollamaBusy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh, size: 17),
+                label: Text(
+                    state.ollamaBusy ? 'Re-evaluating…' : 'Re-evaluate Now'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConsensusScoreRow extends StatelessWidget {
+  const _ConsensusScoreRow({
+    required this.label,
+    required this.score,
+    this.strong = false,
+  });
+  final String label;
+  final int score;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: TextStyle(color: palette.secondary)),
+          ),
+          Text(
+            '$score / 1000',
+            style: TextStyle(
+              color: palette.ink,
+              fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -245,6 +394,38 @@ class _EvidenceCard extends StatelessWidget {
                     : _formatEvidence(field.$1, applicant.evidence![field.$1]!),
                 complete: applicant.evidence?[field.$1] != null,
               ),
+            if (applicant.description?.trim().isNotEmpty ?? false) ...[
+              const SizedBox(height: Spacing.md),
+              Text(
+                'Description',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: palette.ink,
+                ),
+              ),
+              const SizedBox(height: Spacing.xxs),
+              Text(
+                applicant.description!,
+                style: TextStyle(color: palette.secondary, height: 1.45),
+              ),
+            ],
+            const SizedBox(height: Spacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CreateApplicantScreen(
+                      state: state,
+                      applicant: applicant,
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('Edit profile'),
+              ),
+            ),
           ],
         ),
       ),
@@ -333,12 +514,12 @@ class _EngineFooter extends StatelessWidget {
     final palette = Palette.of(context);
     final assessment = applicant.assessment;
     final fromLaptop = assessment?.isOllama ?? false;
-    final model = assessment?.modelVersion ?? 'bundled model';
+    final model = assessment?.modelVersion ?? 'Awaiting Ollama score';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
-          fromLaptop ? Icons.laptop_mac : Icons.inventory_2_outlined,
+          Icons.laptop_mac,
           size: 16,
           color: palette.muted,
         ),
@@ -350,7 +531,7 @@ class _EngineFooter extends StatelessWidget {
               Text(
                 fromLaptop
                     ? 'Scored by Ollama on your laptop'
-                    : 'Scored by the bundled model',
+                    : 'Not scored yet',
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.4,
@@ -568,7 +749,7 @@ class _ScoreGaugePainter extends CustomPainter {
     canvas.drawArc(rect, -math.pi / 2, sweep, false, arc);
 
     // A marker sits on the leading edge of the arc so the count-up has a
-    // physical anchor. It is the only gold object on the screen.
+    // physical anchor. The red accent is reserved for this score marker.
     final tip = Offset(
       center.dx + radius * math.cos(-math.pi / 2 + sweep),
       center.dy + radius * math.sin(-math.pi / 2 + sweep),

@@ -6,13 +6,11 @@ import '../demo_repository.dart';
 import '../models.dart';
 import '../widgets.dart';
 
-/// A full-screen form that turns six evidence inputs into a scored profile.
-///
-/// The fields mirror the six features the bundled model reads, so a profile
-/// created here goes through exactly the same path as the seeded profiles.
+/// Creates or edits a profile and asks Ollama to score its submitted evidence.
 class CreateApplicantScreen extends StatefulWidget {
-  const CreateApplicantScreen({required this.state, super.key});
+  const CreateApplicantScreen({required this.state, this.applicant, super.key});
   final DemoState state;
+  final Applicant? applicant;
 
   @override
   State<CreateApplicantScreen> createState() => _CreateApplicantScreenState();
@@ -23,6 +21,7 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
 
   final formKey = GlobalKey<FormState>();
   final name = TextEditingController();
+  final description = TextEditingController();
   final utility = TextEditingController();
   final rent = TextEditingController();
   final income = TextEditingController();
@@ -32,8 +31,28 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
   bool saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    final applicant = widget.applicant;
+    if (applicant == null) return;
+    name.text = applicant.name;
+    description.text = applicant.description ?? '';
+    final evidence = applicant.evidence ?? const <String, double?>{};
+    utility.text = _fieldValue(evidence['utility_payment_consistency_pct']);
+    rent.text = _fieldValue(evidence['rent_payment_reliability_pct']);
+    income.text = _fieldValue(evidence['verified_income_regularity_pct']);
+    loans.text = _fieldValue(evidence['previous_loan_repayment_history']);
+    missed.text = _fieldValue(evidence['missed_payments_count_12m']);
+    final obligationsValue = evidence['existing_financial_obligations_ratio'];
+    obligations.text = obligationsValue == null
+        ? ''
+        : (obligationsValue * 100).toStringAsFixed(0);
+  }
+
+  @override
   void dispose() {
     name.dispose();
+    description.dispose();
     utility.dispose();
     rent.dispose();
     income.dispose();
@@ -74,12 +93,12 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
               ),
               const SizedBox(height: Spacing.xxs),
               Text(
-                'Create profile',
+                widget.applicant == null ? 'Create profile' : 'Edit profile',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: Spacing.xs),
               Text(
-                'Enter the evidence the model reads. All six fields are required.',
+                'Add financial details, a description, or both.',
                 style: Theme.of(context)
                     .textTheme
                     .bodyMedium
@@ -101,6 +120,28 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
                       floatingLabelBehavior: FloatingLabelBehavior.always,
                     ),
                     validator: _required,
+                  ),
+                ),
+              ),
+              const SizedBox(height: Spacing.md),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(Spacing.md),
+                  child: TextFormField(
+                    key: const ValueKey('applicant-description'),
+                    controller: description,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.newline,
+                    keyboardType: TextInputType.multiline,
+                    minLines: 3,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      labelText: 'About this person (optional)',
+                      hintText: 'Describe relevant payment or income history '
+                          'in your own words.',
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      alignLabelWithHint: true,
+                    ),
                   ),
                 ),
               ),
@@ -172,7 +213,9 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
                           color: palette.onInk,
                         ),
                       )
-                    : const Text('Create profile'),
+                    : Text(widget.applicant == null
+                        ? 'Create profile'
+                        : 'Save changes'),
               ),
             ],
           ),
@@ -241,18 +284,16 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
       (value == null || value.trim().isEmpty) ? 'Required' : null;
 
   static String? _percent(String? value) {
-    final required = _required(value);
-    if (required != null) return required;
-    final parsed = double.tryParse(value!.trim());
+    if (value == null || value.trim().isEmpty) return null;
+    final parsed = double.tryParse(value.trim());
     if (parsed == null) return 'Enter a number';
     if (parsed < 0 || parsed > 100) return 'Enter 0 to 100';
     return null;
   }
 
   static String? _count(String? value) {
-    final required = _required(value);
-    if (required != null) return required;
-    final parsed = int.tryParse(value!.trim());
+    if (value == null || value.trim().isEmpty) return null;
+    final parsed = int.tryParse(value.trim());
     if (parsed == null) return 'Enter a whole number';
     if (parsed < 0 || parsed > 99) return 'Enter 0 to 99';
     return null;
@@ -260,30 +301,47 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
 
   Future<void> _create() async {
     if (!formKey.currentState!.validate()) return;
+    final descriptionText = description.text.trim();
+    final hasDescription = descriptionText.isNotEmpty;
+    final numericValues = [utility, rent, income, loans, missed, obligations]
+        .map((controller) => _parseOptional(controller.text))
+        .toList();
+    if (!hasDescription && numericValues.every((value) => value == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Add a description or at least one number')),
+      );
+      return;
+    }
     setState(() => saving = true);
 
     final evidence = <String, double?>{
-      'utility_payment_consistency_pct': double.parse(utility.text.trim()),
-      'rent_payment_reliability_pct': double.parse(rent.text.trim()),
-      'verified_income_regularity_pct': double.parse(income.text.trim()),
-      'previous_loan_repayment_history': double.parse(loans.text.trim()),
-      'missed_payments_count_12m': double.parse(missed.text.trim()),
+      'utility_payment_consistency_pct': _parseOptional(utility.text),
+      'rent_payment_reliability_pct': _parseOptional(rent.text),
+      'verified_income_regularity_pct': _parseOptional(income.text),
+      'previous_loan_repayment_history': _parseOptional(loans.text),
+      'missed_payments_count_12m': _parseOptional(missed.text),
       'existing_financial_obligations_ratio':
-          double.parse(obligations.text.trim()) / 100,
+          _parseOptional(obligations.text) == null
+              ? null
+              : _parseOptional(obligations.text)! / 100,
     };
 
     try {
       final assessment = await DemoRepository.assess(
         evidence,
         widget.state.ollamaConfig,
+        descriptionText,
       );
       final hasScore = assessment.hasScore;
       final fullName = name.text.trim().replaceAll(RegExp(r'\s+'), ' ');
+      final existing = widget.applicant;
       final applicant = Applicant(
-        id: widget.state.nextApplicantId,
+        id: existing?.id ?? widget.state.nextApplicantId,
         name: fullName,
         initials: _initials(fullName),
-        avatarAsset: 'assets/images/trustscore_icon.jpg',
+        avatarAsset:
+            existing?.avatarAsset ?? 'assets/images/trustscore_icon.jpg',
         role: hasScore ? 'Evidence available' : 'Evidence still developing',
         summary: hasScore
             ? 'A model assessment is available from the submitted evidence.'
@@ -303,25 +361,26 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
             : DemoRepository.negativeFactors(evidence),
         evidence: evidence,
         assessment: assessment,
+        description: hasDescription ? descriptionText : null,
       );
       if (!mounted) return;
 
       final navigator = Navigator.of(context);
       final messenger = ScaffoldMessenger.of(context);
-      widget.state.addApplicant(applicant);
+      if (existing == null) {
+        widget.state.addApplicant(applicant);
+      } else {
+        widget.state.updateApplicant(applicant);
+      }
       widget.state.setTab(1);
       navigator.pop();
-      final engine = assessment.isOllama
-          ? 'Ollama'
-          : assessment.status == 'scored'
-              ? 'bundled model'
-              : 'evidence gate';
+      final action = existing == null ? 'created' : 'updated';
       messenger.showSnackBar(
         SnackBar(
           content: Text(
             hasScore
-                ? '$fullName created · TrustScore ${assessment.score} · $engine'
-                : '$fullName created · more evidence needed',
+                ? '$fullName $action · TrustScore ${assessment.score} · Ollama'
+                : '$fullName $action · more evidence needed',
           ),
         ),
       );
@@ -340,4 +399,10 @@ class _CreateApplicantScreenState extends State<CreateApplicantScreen> {
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
+
+  static String _fieldValue(double? value) =>
+      value == null ? '' : value.toStringAsFixed(0);
+
+  static double? _parseOptional(String value) =>
+      value.trim().isEmpty ? null : double.parse(value.trim());
 }

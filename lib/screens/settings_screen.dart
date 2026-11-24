@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_theme.dart';
 import '../demo_repository.dart';
 import '../models.dart';
+import '../motion_widgets.dart';
 import '../ollama_client.dart';
 import '../widgets.dart';
 
@@ -13,7 +14,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(context);
-    return ListView(
+    return ScrollRevealList(
       padding: const EdgeInsets.fromLTRB(
         Layout.pageGutter,
         Spacing.lg,
@@ -32,8 +33,7 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 const _SettingRow(
                   title: 'Demo build',
-                  meta:
-                      'Synthetic profiles · bundled model with optional Ollama',
+                  meta: 'Synthetic profiles · scored with Ollama',
                 ),
                 const Divider(),
                 _SettingRow(
@@ -204,8 +204,7 @@ class _OllamaCardState extends State<_OllamaCard> {
         });
       } else {
         setState(() {
-          status = 'Connected, but scoring failed: '
-              '${assessment.fallbackReason ?? 'unknown error'}';
+          status = 'Connected, but Ollama did not return a valid score.';
           statusIsError = true;
         });
       }
@@ -272,7 +271,7 @@ class _OllamaCardState extends State<_OllamaCard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'The bundled model is used when the laptop is off.',
+                        'Ollama is the scoring engine for every profile.',
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.4,

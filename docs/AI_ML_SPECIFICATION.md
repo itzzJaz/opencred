@@ -27,60 +27,28 @@ Use only relevant, permitted, and documented indicators, such as:
 
 Do not use names, raw identity numbers, card numbers, unrelated sensitive attributes, or protected attributes as predictive inputs. Protected attributes may be retained in a controlled evaluation dataset solely for fairness analysis where lawful and necessary.
 
-## Synthetic dataset
+## Ollama scoring
 
-The generator should define a seed, schema version, country configuration, feature distributions, missingness mechanism, and label-generation method. It should include:
-
-- applicants with strong, mixed, and weak evidence;
-- missing-at-random and structurally missing indicators;
-- applicants with no conventional history but reliable alternative evidence;
-- applicants with insufficient evidence;
-- subgroup labels reserved for fairness analysis;
-- contradictory and stale records for quality testing.
-
-Synthetic labels are demonstration labels created by an explicit documented process. They must not be presented as real repayment outcomes.
-
-## Preprocessing and missingness
-
-Missingness must be represented separately from negative values. Use feature-presence, source-quality, and recency indicators where useful. Imputation must be fitted on training data only and must not silently convert “not available” into “poor”. A missing feature may reduce evidence sufficiency without reducing a score.
-
-The pathway selector runs before scoring. A model must not emit a low score merely because the evidence threshold is not met.
-
-## Models and evaluation
-
-Evaluate at least Random Forest and Extra Trees against a simple documented baseline. Use train/validation/test separation, fixed seeds, and model metadata. Report:
-
-- discrimination metrics appropriate to the synthetic label;
-- precision and recall;
-- calibration and score distributions;
-- subgroup false-positive/false-negative rates where sample sizes allow;
-- missingness-stratified results;
-- limitations and confidence intervals where meaningful.
-
-These are prototype measurements only. Do not select a model solely on aggregate accuracy.
-
-## Prototype Ollama adapter
-
-The Flutter demonstration can delegate TrustScore scoring to an Ollama model on
-the operator's laptop (see the README). The adapter sends only the six synthetic
-evidence features, requests structured JSON, and maps the reply onto the same
-assessment contract (0–1,000 score, engine/model version, factors, limitation).
-The evidence-sufficiency gate still runs before any model is called, and the
-bundled Random Forest scores the profile when Ollama is unavailable. An Ollama
-result is a local demonstration output, not a validated model: it inherits the
-same supplementary, non-decision limits and cannot approve or reject a loan.
+The Flutter demonstration delegates TrustScore scoring to an Ollama model on
+the operator's laptop (see the README). The adapter sends optional numeric
+evidence and an optional plain-English description, requests structured JSON,
+and maps the reply onto the assessment contract (0–1,000 score, model version,
+factors, limitation). A relevant description can be scored without numeric
+fields. There is no bundled scoring model or local inference fallback. An
+Ollama result is a local demonstration output, not a validated model: it is
+supplementary and cannot approve or reject a loan.
 
 ## TrustScore calibration
 
-The raw model output must be transformed through a versioned calibration function into 0–1,000. Calibration must be deterministic and tested at boundaries. The 750 reference is displayed as **provisional** and cannot be treated as a policy threshold. Any future threshold requires institutional, legal, fairness, and validation review.
+Ollama returns an integer from 0–1,000 directly. Store the configured model name and the profile-input hash with each cached result. The 750 reference is displayed as **provisional** and cannot be treated as a policy threshold. Any future threshold requires institutional, legal, fairness, and validation review.
 
 ## Explainability
 
-Each scored assessment should expose a small set of principal positive and negative contributing indicators, their availability/quality, and a plain-language limitation. Explanations must not reveal secrets or imply causation beyond what the model supports. For tree models, use stable model-native importance or a carefully validated explanation method; document its limitations.
+Each scored assessment should expose a small set of principal positive and negative factors and a plain-language limitation. Explanations must not reveal secrets or imply causation beyond what the model supports.
 
 ## Country-adaptive configuration
 
-Country configuration controls permitted indicators, model version, evidence rules, and language. It must not silently reuse a model trained in another country. A new country requires local data, permissions, calibration, independent performance/fairness testing, and review.
+Country configuration controls permitted indicators, evidence rules, and language. A new country requires local permissions, independent fairness review, and evaluation of Ollama outputs before use.
 
 ## Fairness and responsible use
 
@@ -88,4 +56,4 @@ Test whether data availability, evidence thresholds, and model outputs disadvant
 
 ## Model governance
 
-Store dataset version, code version, feature schema, model artifact identifier, training seed, evaluation report, calibration version, country configuration, and approval status. Never overwrite a model used by a recorded assessment. Retain only the metadata needed for reproducibility and audit.
+Store the Ollama model name, code version, profile-input hash, score-run outputs, timestamp, country configuration, and approval status with each result. Retain only the metadata needed for reproducibility and audit.

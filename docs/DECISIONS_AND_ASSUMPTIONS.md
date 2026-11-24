@@ -27,7 +27,7 @@
 2. Which country or countries should the demo configuration show, and what neutral wording is required for the presentation?
 3. Which applicant roles and institution roles are needed in the demo?
 4. What evidence sufficiency scenarios should be seeded for the presentation?
-5. Should the model use a simple baseline plus Random Forest/Extra Trees, or only one tree ensemble to control scope?
+5. The Flutter prototype uses Ollama as its only scoring engine; no bundled or trained local scoring model is included.
 6. What accessibility and language level is required for the target audience?
 7. What fictional assistance eligibility and funding limits best communicate the social-impact mechanism?
 8. Which retention/deletion behaviour must be visibly demonstrated versus documented only?

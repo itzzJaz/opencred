@@ -164,15 +164,209 @@ class ApplicantAvatar extends StatelessWidget {
         border: Border.all(color: palette.hairline),
       ),
       child: ClipOval(
-        child: Image.asset(
-          applicant.avatarAsset,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
+        child: CustomPaint(
+          size: Size.square(size),
+          painter: _ApplicantPortraitPainter(
+            identity: '${applicant.id}:${applicant.name}',
+            isDark: palette.isDark,
+          ),
         ),
       ),
     );
   }
+}
+
+class _ApplicantPortraitPainter extends CustomPainter {
+  _ApplicantPortraitPainter({required this.identity, required this.isDark})
+      : seed = _stableSeed(identity);
+
+  final String identity;
+  final bool isDark;
+  final int seed;
+
+  static int _stableSeed(String input) {
+    var value = 0x811c9dc5;
+    for (final byte in input.codeUnits) {
+      value = ((value ^ byte) * 0x01000193) & 0x7fffffff;
+    }
+    return value;
+  }
+
+  double _unit(int offset) => ((seed >> (offset % 24)) & 0xff) / 255;
+
+  Color _hue(double hue, double saturation, double lightness) =>
+      HSLColor.fromAHSL(1, hue % 360, saturation, lightness).toColor();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final rect = Offset.zero & size;
+    final hue = (_unit(1) * 360 + 8).roundToDouble();
+    final skinTones = [
+      const Color(0xFFF1C8A5),
+      const Color(0xFFDDA47E),
+      const Color(0xFFBD805D),
+      const Color(0xFF8E5C46),
+      const Color(0xFF694536),
+      const Color(0xFFAA7355),
+    ];
+    final skin = skinTones[seed % skinTones.length];
+    final hair = [
+      const Color(0xFF191916),
+      const Color(0xFF33251F),
+      const Color(0xFF4B3428),
+      const Color(0xFF171D24),
+      const Color(0xFF51463C),
+    ][(seed ~/ 7) % 5];
+    final clothes = _hue(
+      (seed % 3 == 0) ? 350 : hue,
+      .48 + _unit(7) * .25,
+      isDark ? .54 : .42,
+    );
+
+    canvas.save();
+    canvas.clipPath(Path()..addOval(rect));
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _hue(hue, .42, isDark ? .25 : .83),
+            _hue(hue + 45, .56, isDark ? .13 : .68),
+          ],
+        ).createShader(rect),
+    );
+
+    final haloPaint = Paint()
+      ..color = Colors.white.withValues(alpha: isDark ? .075 : .20);
+    canvas.drawCircle(Offset(w * .5, h * .36), w * .36, haloPaint);
+    canvas.drawCircle(
+      Offset(w * .5, h * .36),
+      w * .31,
+      Paint()
+        ..color = Colors.white.withValues(alpha: .08)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * .012,
+    );
+
+    // Shoulders and torso
+    final body = Path()
+      ..moveTo(w * .06, h)
+      ..lineTo(w * .09, h * .84)
+      ..quadraticBezierTo(w * .14, h * .72, w * .36, h * .68)
+      ..lineTo(w * .64, h * .68)
+      ..quadraticBezierTo(w * .87, h * .72, w * .92, h * .84)
+      ..lineTo(w * .95, h)
+      ..close();
+    canvas.drawPath(body, Paint()..color = clothes);
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * .39, h * .71)
+        ..lineTo(w * .5, h * .88)
+        ..lineTo(w * .62, h * .71),
+      Paint()
+        ..color = Colors.white.withValues(alpha: .5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * .025
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Neck and ears
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTRB(w * .42, h * .57, w * .58, h * .78),
+        Radius.circular(w * .06),
+      ),
+      Paint()..color = skin,
+    );
+    canvas.drawOval(
+      Rect.fromLTRB(w * .265, h * .37, w * .36, h * .53),
+      Paint()..color = skin,
+    );
+    canvas.drawOval(
+      Rect.fromLTRB(w * .64, h * .37, w * .735, h * .53),
+      Paint()..color = skin,
+    );
+
+    // Face
+    final face = Rect.fromLTRB(w * .30, h * .19, w * .70, h * .63);
+    canvas.drawOval(face, Paint()..color = skin);
+    canvas.drawOval(
+      Rect.fromLTRB(w * .33, h * .36, w * .67, h * .63),
+      Paint()..color = skin.withValues(alpha: .18),
+    );
+
+    // Hairline and a few distinct silhouette styles.
+    final hairPath = Path()..moveTo(w * .285, h * .42);
+    final style = seed % 4;
+    if (style == 0) {
+      hairPath
+        ..cubicTo(w * .20, h * .04, w * .80, h * .04, w * .715, h * .42)
+        ..quadraticBezierTo(w * .66, h * .28, w * .55, h * .31)
+        ..quadraticBezierTo(w * .40, h * .34, w * .285, h * .42);
+    } else if (style == 1) {
+      hairPath
+        ..cubicTo(w * .25, h * .08, w * .72, h * .08, w * .72, h * .4)
+        ..lineTo(w * .67, h * .49)
+        ..lineTo(w * .64, h * .33)
+        ..quadraticBezierTo(w * .46, h * .25, w * .31, h * .37)
+        ..lineTo(w * .30, h * .49);
+    } else if (style == 2) {
+      hairPath
+        ..cubicTo(w * .17, h * .1, w * .79, h * .05, w * .74, h * .46)
+        ..quadraticBezierTo(w * .68, h * .22, w * .48, h * .29)
+        ..quadraticBezierTo(w * .36, h * .29, w * .285, h * .42);
+    } else {
+      hairPath
+        ..cubicTo(w * .22, h * .04, w * .78, h * .08, w * .72, h * .43)
+        ..lineTo(w * .68, h * .55)
+        ..lineTo(w * .65, h * .36)
+        ..quadraticBezierTo(w * .43, h * .24, w * .31, h * .4)
+        ..lineTo(w * .30, h * .53);
+    }
+    hairPath.close();
+    canvas.drawPath(hairPath, Paint()..color = hair);
+
+    final eyePaint = Paint()..color = const Color(0xFF252421);
+    final eyeY = h * .445;
+    canvas.drawOval(
+        Rect.fromCenter(
+            center: Offset(w * .414, eyeY), width: w * .038, height: w * .025),
+        eyePaint);
+    canvas.drawOval(
+        Rect.fromCenter(
+            center: Offset(w * .586, eyeY), width: w * .038, height: w * .025),
+        eyePaint);
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * .50, h * .45)
+        ..quadraticBezierTo(w * .475, h * .52, w * .51, h * .535),
+      Paint()
+        ..color = hair.withValues(alpha: .65)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * .018
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * .445, h * .57)
+        ..quadraticBezierTo(
+            w * .50, h * (.585 + _unit(13) * .015), w * .555, h * .57),
+      Paint()
+        ..color = const Color(0xFF7E3D3A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * .018
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _ApplicantPortraitPainter oldDelegate) =>
+      oldDelegate.seed != seed || oldDelegate.isDark != isDark;
 }
 
 /// Label on the left, value on the right, both on a shared baseline and a

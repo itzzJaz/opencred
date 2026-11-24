@@ -1,15 +1,110 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'ollama_client.dart';
-import 'trustscore_model.dart';
+import 'trustscore_assessment.dart';
 
 enum AssessmentPathway { trustScore, alternative }
 
 /// Scores evidence against a [OllamaConfig]. Injected by the app so the demo
 /// state can stay free of networking and asset loading.
 typedef TrustScoreAssessor = Future<TrustScoreAssessment> Function(
-  Map<String, double?> evidence,
-  OllamaConfig config,
-);
+    Map<String, double?> evidence, OllamaConfig config,
+    [String? description, bool force]);
+
+/// Cached result from 3 Ollama scoring runs with their average.
+class OllamaScoreCache {
+  const OllamaScoreCache({
+    required this.scores,
+    required this.averageScore,
+    required this.averageProbability,
+    required this.positiveFactors,
+    required this.negativeFactors,
+    required this.limitation,
+    required this.modelVersion,
+    required this.timestamp,
+    required this.judgeExplanation,
+  });
+
+  final List<int> scores;
+  final int averageScore;
+  final double averageProbability;
+  final List<String> positiveFactors;
+  final List<String> negativeFactors;
+  final String limitation;
+  final String modelVersion;
+  final DateTime timestamp;
+  final String judgeExplanation;
+
+  TrustScoreAssessment toAssessment(int presentFeatures) =>
+      TrustScoreAssessment(
+        status: 'scored',
+        modelVersion: modelVersion,
+        score: averageScore,
+        probability: averageProbability,
+        presentFeatures: presentFeatures,
+        limitation: limitation,
+        positiveFactors: positiveFactors,
+        negativeFactors: negativeFactors,
+        runScores: scores,
+        judgeExplanation: judgeExplanation,
+      );
+
+  factory OllamaScoreCache.fromAssessments(
+    List<TrustScoreAssessment> assessments,
+    String modelVersion,
+  ) {
+    if (assessments.length != 3 || assessments.any((a) => !a.hasScore)) {
+      throw ArgumentError('A saved Ollama score requires 3 scored runs.');
+    }
+    final scores = assessments.map((a) => a.score ?? 0).toList();
+    final avgScore = (scores.reduce((a, b) => a + b) / scores.length).round();
+    final avgProb =
+        assessments.map((a) => a.probability ?? 0.0).reduce((a, b) => a + b) /
+            assessments.length;
+    return OllamaScoreCache(
+      scores: scores,
+      averageScore: avgScore.clamp(0, 1000),
+      averageProbability: avgProb.clamp(0.0, 1.0),
+      positiveFactors:
+          assessments.expand((a) => a.positiveFactors).toSet().take(3).toList(),
+      negativeFactors:
+          assessments.expand((a) => a.negativeFactors).toSet().take(3).toList(),
+      limitation: assessments.first.limitation.isNotEmpty
+          ? assessments.first.limitation
+          : 'Average of 3 Ollama scoring runs.',
+      modelVersion: modelVersion,
+      timestamp: DateTime.now(),
+      judgeExplanation: assessments.first.judgeExplanation,
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+        'scores': scores,
+        'averageScore': averageScore,
+        'averageProbability': averageProbability,
+        'positiveFactors': positiveFactors,
+        'negativeFactors': negativeFactors,
+        'limitation': limitation,
+        'modelVersion': modelVersion,
+        'timestamp': timestamp.toUtc().toIso8601String(),
+        'judgeExplanation': judgeExplanation,
+      };
+
+  factory OllamaScoreCache.fromJson(Map<String, dynamic> json) =>
+      OllamaScoreCache(
+        scores:
+            (json['scores'] as List).cast<num>().map((n) => n.toInt()).toList(),
+        averageScore: (json['averageScore'] as num).toInt(),
+        averageProbability: (json['averageProbability'] as num).toDouble(),
+        positiveFactors: (json['positiveFactors'] as List).cast<String>(),
+        negativeFactors: (json['negativeFactors'] as List).cast<String>(),
+        limitation: json['limitation'] as String,
+        modelVersion: json['modelVersion'] as String,
+        timestamp: DateTime.parse(json['timestamp'] as String),
+        judgeExplanation: json['judgeExplanation'] as String? ?? '',
+      );
+}
 
 class FinancialRecord {
   const FinancialRecord({
@@ -43,6 +138,7 @@ class Applicant {
     required this.negativeFactors,
     this.evidence,
     this.assessment,
+    this.description,
   });
 
   final String id;
@@ -59,6 +155,7 @@ class Applicant {
   final List<String> negativeFactors;
   final Map<String, double?>? evidence;
   final TrustScoreAssessment? assessment;
+  final String? description;
 
   bool get hasScore => pathway == AssessmentPathway.trustScore;
   int? get trustScore => assessment?.score;
@@ -76,6 +173,8 @@ class Applicant {
     List<String>? positiveFactors,
     List<String>? negativeFactors,
     TrustScoreAssessment? assessment,
+    String? description,
+    bool clearDescription = false,
   }) =>
       Applicant(
         id: id,
@@ -92,6 +191,7 @@ class Applicant {
         negativeFactors: negativeFactors ?? this.negativeFactors,
         evidence: evidence,
         assessment: assessment ?? this.assessment,
+        description: clearDescription ? null : description ?? this.description,
       );
 }
 
@@ -101,6 +201,12 @@ class DemoState extends ChangeNotifier {
         applicants = List<Applicant>.of(source),
         _assessor = assessor {
     selected = applicants.first;
+  }
+
+  @override
+  void dispose() {
+    _profileSwitchTimer?.cancel();
+    super.dispose();
   }
 
   /// The immutable seeded profiles. Reset restores this list, so anything
@@ -113,14 +219,16 @@ class DemoState extends ChangeNotifier {
   bool identityVerified = false;
   bool consentGranted = false;
   bool assessmentStarted = false;
+  Applicant? profileSwitchFrom;
+  bool profileSwitching = false;
+  Timer? _profileSwitchTimer;
   bool showWelcome = true;
+  bool judgeLensEnabled = false;
   String applicationStatus = 'Under review';
   ThemeMode themeMode = ThemeMode.system;
   final Map<String, String> _notes = {};
 
-  /// The laptop Ollama server used for TrustScore. Seeded profiles start with
-  /// the bundled model so startup stays instant, then the assessment screen
-  /// re-scores the selected profile through Ollama.
+  /// Ollama server configuration used by all profile scoring.
   OllamaConfig ollamaConfig = OllamaConfig.fromEnvironment();
   bool ollamaBusy = false;
   String? ollamaMessage;
@@ -158,9 +266,23 @@ class DemoState extends ChangeNotifier {
     selectApplicant(applicant);
   }
 
+  void updateApplicant(Applicant applicant) {
+    final index = applicants.indexWhere((item) => item.id == applicant.id);
+    if (index < 0) return;
+    applicants[index] = applicant;
+    if (selected.id == applicant.id) selected = applicant;
+    _ollamaAttempted.remove(applicant.id);
+    notifyListeners();
+  }
+
   void setThemeMode(ThemeMode mode) {
     if (themeMode == mode) return;
     themeMode = mode;
+    notifyListeners();
+  }
+
+  void toggleJudgeLens() {
+    judgeLensEnabled = !judgeLensEnabled;
     notifyListeners();
   }
 
@@ -172,34 +294,37 @@ class DemoState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Asks the laptop model to re-score one applicant. A profile is only sent
-  /// once per config unless [force] is set, so switching tabs does not spam
-  /// the server. The result replaces the bundled-model result for that profile.
+  /// Asks the laptop model to re-score one applicant (3 runs, averaged).
+  /// A profile is only sent once per config unless [force] is set or evidence
+  /// has changed. The averaged result is cached per applicant.
   Future<void> assessWithOllama(String applicantId,
       {bool force = false}) async {
     final assessor = _assessor;
     if (assessor == null || !ollamaConfig.enabled || ollamaBusy) return;
-    if (!force && _ollamaAttempted.contains(applicantId)) return;
 
     final index =
         applicants.indexWhere((applicant) => applicant.id == applicantId);
     if (index < 0) return;
-    final evidence = applicants[index].evidence;
-    if (evidence == null || evidence.values.every((value) => value == null)) {
+    final current = applicants[index];
+    final evidence = current.evidence;
+    if ((evidence == null || evidence.values.every((value) => value == null)) &&
+        (current.description == null || current.description!.trim().isEmpty)) {
       return;
     }
+
+    // Check if we need to rescore (force, never attempted, or evidence changed)
+    final needsRescore = force || !_ollamaAttempted.contains(applicantId);
+    if (!needsRescore) return;
 
     _ollamaAttempted.add(applicantId);
     ollamaBusy = true;
     ollamaMessage = null;
     notifyListeners();
     try {
-      final assessment = await assessor(evidence, ollamaConfig);
+      final assessment = await assessor(
+          evidence ?? const {}, ollamaConfig, current.description, force);
       _applyAssessment(applicantId, assessment);
-      if (!assessment.isOllama && assessment.fallbackReason != null) {
-        ollamaMessage = 'Ollama unavailable — ${assessment.fallbackReason} '
-            'The bundled model scored this profile.';
-      }
+      ollamaMessage = null;
     } catch (error) {
       _ollamaAttempted.remove(applicantId);
       ollamaMessage = 'Ollama unavailable — $error';
@@ -241,10 +366,27 @@ class DemoState extends ChangeNotifier {
   }
 
   void selectApplicant(Applicant applicant) {
+    if (selected.id != applicant.id) {
+      profileSwitchFrom = selected;
+      profileSwitching = true;
+      _profileSwitchTimer?.cancel();
+      _profileSwitchTimer = Timer(const Duration(milliseconds: 1850), () {
+        profileSwitching = false;
+        profileSwitchFrom = null;
+        notifyListeners();
+      });
+    }
     selected = applicant;
     identityVerified = false;
     consentGranted = false;
     assessmentStarted = false;
+    notifyListeners();
+  }
+
+  void dismissProfileSwitch() {
+    _profileSwitchTimer?.cancel();
+    profileSwitching = false;
+    profileSwitchFrom = null;
     notifyListeners();
   }
 
@@ -274,6 +416,9 @@ class DemoState extends ChangeNotifier {
   }
 
   void reset() {
+    _profileSwitchTimer?.cancel();
+    profileSwitching = false;
+    profileSwitchFrom = null;
     applicants
       ..clear()
       ..addAll(_seed);

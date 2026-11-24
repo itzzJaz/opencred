@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'app_theme.dart';
 import 'demo_repository.dart';
 import 'liquid_glass.dart';
+import 'judge_lens.dart';
+import 'motion_widgets.dart';
 import 'models.dart';
 import 'widgets.dart';
 import 'screens/overview_screen.dart';
@@ -41,9 +43,11 @@ class _OpenCredAppState extends State<OpenCredApp> {
                 : SystemUiOverlayStyle.dark,
             child: child ?? const SizedBox.shrink(),
           ),
-          home: state.showWelcome
-              ? WelcomeScreen(state: state)
-              : _Shell(state: state),
+          home: EditorialPreloader(
+            child: state.showWelcome
+                ? WelcomeScreen(state: state)
+                : _Shell(state: state),
+          ),
         ),
       );
 }
@@ -80,20 +84,59 @@ class _Shell extends StatelessWidget {
             Column(
               children: [
                 _ProfileBar(state: state),
+                if (state.judgeLensEnabled) const JudgeLensPanel(),
                 Expanded(
                   child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
+                    duration: const Duration(milliseconds: 420),
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) => FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                                begin: const Offset(0, .015), end: Offset.zero)
-                            .animate(animation),
-                        child: child,
-                      ),
-                    ),
+                    transitionBuilder: (child, animation) {
+                      final isIncoming = (child.key as ValueKey<int>?)?.value ==
+                          state.tabIndex;
+                      if (!isIncoming) {
+                        return FadeTransition(opacity: animation, child: child);
+                      }
+                      final entrance = CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      );
+                      return Stack(
+                        children: [
+                          FadeTransition(
+                            opacity: CurvedAnimation(
+                              parent: animation,
+                              curve: const Interval(0.16, 1,
+                                  curve: Curves.easeOut),
+                            ),
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.025, 0),
+                                end: Offset.zero,
+                              ).animate(entrance),
+                              child: child,
+                            ),
+                          ),
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: AnimatedBuilder(
+                                animation: animation,
+                                builder: (context, _) {
+                                  final progress = animation.value;
+                                  if (progress <= 0 || progress >= 1) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return CustomPaint(
+                                    painter: LeclercShutterBandPainter(
+                                      progress: progress,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                     child: KeyedSubtree(
                       key: ValueKey(state.tabIndex),
                       child: screens[state.tabIndex],
@@ -111,7 +154,168 @@ class _Shell extends StatelessWidget {
                 child: GlassNavBar(
                   destinations: destinations,
                   selectedIndex: state.tabIndex,
-                  onSelected: state.setTab,
+                  onSelected: (index) {
+                    HapticFeedback.selectionClick();
+                    state.setTab(index);
+                  },
+                ),
+              ),
+            ),
+            if (state.profileSwitching && state.profileSwitchFrom != null)
+              Positioned.fill(
+                child: _ProfileHandoff(
+                  from: state.profileSwitchFrom!,
+                  to: state.selected,
+                  onDismiss: state.dismissProfileSwitch,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileHandoff extends StatefulWidget {
+  const _ProfileHandoff({
+    required this.from,
+    required this.to,
+    required this.onDismiss,
+  });
+
+  final Applicant from;
+  final Applicant to;
+  final VoidCallback onDismiss;
+
+  @override
+  State<_ProfileHandoff> createState() => _ProfileHandoffState();
+}
+
+class _ProfileHandoffState extends State<_ProfileHandoff>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1650),
+  )..forward();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    final oldExit = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0, 0.42, curve: Curves.easeInCubic),
+    );
+    final newEntrance = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.39, 0.84, curve: Curves.easeOutBack),
+    );
+    final sweep = MediaQuery.sizeOf(context).width;
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final impactFlash = const Interval(0.36, 0.52, curve: Curves.easeOut)
+        .transform(_controller.value);
+    final flashStrength = .55 * (1 - (2 * impactFlash - 1).abs());
+
+    return Material(
+      color: Colors.transparent,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => Stack(
+          fit: StackFit.expand,
+          children: [
+            CustomPaint(
+              painter: _ProfileAtmospherePainter(
+                progress: _controller.value,
+                base: palette.hero,
+                accent: palette.accent,
+              ),
+              child: const SizedBox.expand(),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: TextButton.icon(
+                  onPressed: widget.onDismiss,
+                  icon: const Icon(Icons.close, size: 16),
+                  label: const Text('Close'),
+                  style: TextButton.styleFrom(foregroundColor: palette.onHero),
+                ),
+              ),
+            ),
+            Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Opacity(
+                    opacity: (1 - oldExit.value).clamp(0.0, 1.0),
+                    child: Transform.translate(
+                      offset: Offset(-18 * oldExit.value,
+                          -screenHeight * .82 * oldExit.value),
+                      child: Transform.rotate(
+                        angle: -.045 * oldExit.value,
+                        child: Transform.scale(
+                          scale: 1 + .85 * oldExit.value,
+                          child: _HandoffIdentity(
+                            applicant: widget.from,
+                            palette: palette,
+                            kicker: 'LEAVING PROFILE',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Opacity(
+                    opacity: newEntrance.value.clamp(0.0, 1.0),
+                    child: Transform.translate(
+                      offset: Offset(16 * (1 - newEntrance.value),
+                          screenHeight * .72 * (1 - newEntrance.value)),
+                      child: Transform.rotate(
+                        angle: .08 * (1 - newEntrance.value),
+                        child: Transform.scale(
+                          scale: .42 + .58 * newEntrance.value,
+                          child: _HandoffIdentity(
+                            applicant: widget.to,
+                            palette: palette,
+                            kicker: 'NOW VIEWING',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (impactFlash > 0)
+              IgnorePointer(
+                child: ColoredBox(
+                  color: palette.accent.withValues(
+                    alpha: flashStrength,
+                  ),
+                ),
+              ),
+            Positioned(
+              left: sweep * (_controller.value * 1.5 - .5),
+              top: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: Container(
+                    width: 34,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          palette.accent.withValues(alpha: .72),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -120,6 +324,122 @@ class _Shell extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HandoffIdentity extends StatelessWidget {
+  const _HandoffIdentity({
+    required this.applicant,
+    required this.palette,
+    required this.kicker,
+  });
+
+  final Applicant applicant;
+  final Palette palette;
+  final String kicker;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            kicker,
+            style: TextStyle(
+              color: palette.onHero.withValues(alpha: .68),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: Spacing.lg),
+          ApplicantAvatar(applicant: applicant, size: 168),
+          const SizedBox(height: Spacing.lg),
+          Text(
+            applicant.name,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: palette.onHero,
+              fontSize: 30,
+              height: 1.1,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -.6,
+            ),
+          ),
+          const SizedBox(height: Spacing.xs),
+          Text(
+            applicant.id,
+            style: TextStyle(color: palette.onHero.withValues(alpha: .65)),
+          ),
+        ],
+      );
+}
+
+class _ProfileAtmospherePainter extends CustomPainter {
+  const _ProfileAtmospherePainter({
+    required this.progress,
+    required this.base,
+    required this.accent,
+  });
+
+  final double progress;
+  final Color base;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            accent.withValues(alpha: .22),
+            base,
+            const Color(0xFF07090D)
+          ],
+          stops: const [0, .48, 1],
+        ).createShader(rect),
+    );
+
+    final horizon = size.height * (.72 - .035 * (1 - progress));
+    final glowRect = Rect.fromCircle(
+      center: Offset(size.width * .5, horizon),
+      radius: size.width * .48,
+    );
+    canvas.drawCircle(
+      glowRect.center,
+      glowRect.width / 2,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [accent.withValues(alpha: .30), Colors.transparent],
+        ).createShader(glowRect),
+    );
+
+    final skyline = Paint()
+      ..color = const Color(0xFF080A0E).withValues(alpha: .78);
+    const heights = [.12, .2, .16, .28, .18, .24, .14, .22, .17];
+    final drift = (1 - progress) * size.width * .045;
+    for (var i = 0; i < heights.length; i++) {
+      final x = i * size.width / 8 - size.width / 16 + drift;
+      final width = size.width / 9;
+      final height = size.height * heights[i];
+      canvas.drawRect(
+        Rect.fromLTWH(x, horizon - height, width, height),
+        skyline,
+      );
+    }
+    canvas.drawRect(
+      Rect.fromLTWH(0, horizon, size.width, size.height - horizon),
+      skyline,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProfileAtmospherePainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.base != base ||
+      oldDelegate.accent != accent;
 }
 
 class _ProfileBar extends StatelessWidget {
@@ -136,66 +456,98 @@ class _ProfileBar extends StatelessWidget {
         Spacing.md,
         Spacing.xs,
       ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Semantics(
-          button: true,
-          label: 'Switch profile, ${state.selected.name}',
-          child: Tooltip(
-            message: 'Switch profile',
-            child: LiquidGlassSurface(
-              capsule: true,
-              elevated: false,
-              tint: palette.raised.withValues(alpha: 0.72),
-              padding: const EdgeInsets.fromLTRB(
-                Spacing.xs,
-                Spacing.xxs,
-                Spacing.sm,
-                Spacing.xxs,
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(Radii.capsule),
-                onTap: () => _showProfiles(context),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ApplicantAvatar(applicant: state.selected, size: 32),
-                    const SizedBox(width: Spacing.xs),
-                    Flexible(
-                      child: Column(
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Semantics(
+                button: true,
+                label: 'Switch profile, ${state.selected.name}',
+                child: Tooltip(
+                  message: 'Switch profile',
+                  child: LiquidGlassSurface(
+                    capsule: true,
+                    elevated: false,
+                    tint: palette.raised.withValues(alpha: 0.72),
+                    padding: const EdgeInsets.fromLTRB(
+                      Spacing.xs,
+                      Spacing.xxs,
+                      Spacing.sm,
+                      Spacing.xxs,
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(Radii.capsule),
+                      onTap: () => _showProfiles(context),
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Profile',
-                            style: TextStyle(
-                              fontSize: 11,
-                              height: 1.2,
-                              color: palette.muted,
+                          ApplicantAvatar(applicant: state.selected, size: 32),
+                          const SizedBox(width: Spacing.xs),
+                          Flexible(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Profile',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    height: 1.2,
+                                    color: palette.muted,
+                                  ),
+                                ),
+                                Text(
+                                  state.selected.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    height: 1.3,
+                                    fontWeight: FontWeight.w600,
+                                    color: palette.ink,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          Text(
-                            state.selected.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              height: 1.3,
-                              fontWeight: FontWeight.w600,
-                              color: palette.ink,
-                            ),
-                          ),
+                          const SizedBox(width: Spacing.xs),
+                          Icon(Icons.unfold_more,
+                              size: 16, color: palette.muted),
                         ],
                       ),
                     ),
-                    const SizedBox(width: Spacing.xs),
-                    Icon(Icons.unfold_more, size: 16, color: palette.muted),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          const SizedBox(width: Spacing.xs),
+          Tooltip(
+            message: state.judgeLensEnabled
+                ? 'Hide implementation status badges'
+                : 'Show implementation status badges',
+            child: TextButton.icon(
+              onPressed: state.toggleJudgeLens,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+                minimumSize: const Size(0, 38),
+                foregroundColor:
+                    state.judgeLensEnabled ? palette.ink : palette.secondary,
+              ),
+              icon: Icon(
+                state.judgeLensEnabled
+                    ? Icons.visibility
+                    : Icons.visibility_outlined,
+                size: 16,
+              ),
+              label: const Text(
+                'Judge Lens',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

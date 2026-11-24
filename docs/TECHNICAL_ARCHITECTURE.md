@@ -11,7 +11,7 @@ Recommended future stack:
 - Frontend: React + TypeScript + Vite, with accessible component styling.
 - Backend: Python + FastAPI, Pydantic validation, and SQLAlchemy.
 - Database: SQLite for local demonstration, with PostgreSQL-compatible schema and migrations for later deployment.
-- AI/ML: Python, pandas, scikit-learn, and SHAP or model-native feature importance where appropriate.
+- Scoring: Ollama's HTTP API through a configured model adapter.
 - Testing: pytest for backend/model tests; Vitest and Testing Library for frontend tests; Playwright only for a small critical journey if setup time permits.
 - Packaging: one repository with separate `frontend/`, `backend/`, `ml/`, and `docs/` areas. Pin dependencies once implementation starts.
 
@@ -21,8 +21,8 @@ Current demonstration frontend:
 - bundled synthetic CSV assets and a deterministic in-memory demo state;
 - mock identity, consent, assessment, institution review, assistance, and status
   surfaces;
-- optional TrustScore scoring through Ollama on the operator's laptop, with the
-  bundled model as an offline fallback;
+- TrustScore scoring through Ollama on the operator's laptop, with local
+  caching for unchanged profile inputs and no bundled scoring model;
 - no real National ID, bank, government, or authentication provider.
 
 These are recommendations, not installed dependencies. No dependency should be added before implementation approval and a concrete need.

@@ -4,7 +4,7 @@
 
 TrustScore is a proposed AI-powered financial inclusion platform. It provides participating financial institutions with supplementary, explainable financial-behaviour assessments while ensuring that applicants without sufficient evidence are not automatically treated as unreliable.
 
-The project now includes an **offline Flutter demonstration frontend**. It has no production integrations, real National ID checks, real financial records, or validated real-world predictive claims. The app uses synthetic applicants, a dynamic bundled CSV, a portable Random Forest model artifact, and simulated identity/data states.
+The project now includes a Flutter demonstration frontend. It has no production integrations, real National ID checks, real financial records, or validated real-world predictive claims. The app uses synthetic applicants, a bundled CSV, Ollama scoring, and simulated identity/data states.
 
 ## Core principles
 
@@ -21,7 +21,6 @@ The project now includes an **offline Flutter demonstration frontend**. It has n
 - [Technical architecture](docs/TECHNICAL_ARCHITECTURE.md)
 - [Development roadmap](docs/DEVELOPMENT_ROADMAP.md)
 - [AI/ML specification](docs/AI_ML_SPECIFICATION.md)
-- [Synthetic model training](docs/MODEL_TRAINING.md)
 - [Database schema](docs/DATABASE_SCHEMA.md)
 - [Security and privacy](docs/SECURITY_AND_PRIVACY.md)
 - [Feature specification](docs/FEATURE_SPECIFICATION.md)
@@ -37,10 +36,10 @@ The Flutter app lives in [`lib/`](lib/) and loads every row in [`assets/data/app
 - applicant journey states for simulated verification, consent, evidence and assessment;
 - TrustScore and alternative-assessment pathways;
 - institution review, interest assistance, application status messaging, and settings;
-- explicit synthetic, simulated, supplementary, and offline-model disclosures;
-- TrustScore scoring through Ollama on the operator's laptop, with automatic
-  fallback to the bundled model when the laptop is unreachable;
-- local model inference for every profile with an evidence sufficiency gate.
+- explicit synthetic, simulated, and supplementary disclosures;
+- TrustScore scoring through Ollama on the operator's laptop, using numeric
+  evidence, an optional plain-English profile description, or both;
+- local persistence of each Ollama result against a hash of the profile inputs.
 
 Run it from a machine with Flutter installed:
 
@@ -53,10 +52,11 @@ flutter run
 
 ## Scoring with Ollama on your laptop
 
-The assessment screen sends only the six synthetic evidence features to an
-Ollama server and asks for a structured 0–1,000 TrustScore plus factors. If the
-server is off or unreachable, the app silently falls back to the bundled
-Random Forest so the offline demo still works.
+The assessment screen sends the six optional numeric evidence fields and the
+optional plain-English description to an Ollama server. The description alone
+can support a score when it contains relevant information. Each uncached
+profile is scored three times and the average is stored locally. If Ollama is
+unavailable, no local model is used.
 
 1. Install [Ollama](https://ollama.com) on the laptop and pull a model:
 
@@ -89,11 +89,9 @@ flutter run \
   --dart-define=OLLAMA_MODEL=llama3.2
 ```
 
-Use `--dart-define=OLLAMA_ENABLED=false` to force the bundled model. Seeded
-profiles load instantly from the bundled model, and the selected profile is
-re-scored by Ollama when the Assessment tab opens. Newly created profiles are
-scored by Ollama directly. The card footer shows which engine produced the
-score.
+Use `--dart-define=OLLAMA_ENABLED=false` to disable scoring. Saved scores are
+reused when profile inputs have not changed. Newly created or edited profiles
+are scored through Ollama, and the card footer shows the Ollama model version.
 
 To add profiles, edit `assets/data/applicants.csv` and add one row per person using the existing header. Rebuild the app after changing the bundled asset; there is no fixed profile limit beyond device memory.
 
@@ -101,4 +99,4 @@ To add profiles, edit `assets/data/applicants.csv` and add one row per person us
 
 The first implementation should demonstrate applicant registration, simulated identity verification, explicit consent, both assessment pathways, synthetic financial indicators, an illustrative TrustScore with explanations, insufficient-evidence handling, an institution dashboard, and a separate interest-assistance demonstration.
 
-An offline synthetic training pipeline now lives under [`ml/`](ml/) and produces a versioned prototype model plus an evaluation report. The mobile frontend does not implement live providers, automatic lending decisions, or real assistance funding. Those remain future phases described in the documentation.
+The mobile frontend does not implement live providers, automatic lending decisions, or real assistance funding. Those remain future phases described in the documentation.

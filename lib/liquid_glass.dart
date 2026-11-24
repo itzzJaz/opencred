@@ -43,8 +43,8 @@ class LiquidGlassSurface extends StatelessWidget {
   /// edge can turn it off.
   final bool elevated;
 
-  static const Color _lightTint = Color(0xB8F6F4ED); // ivory at 72%
-  static const Color _darkTint = Color(0x9A0C1B18); // deep emerald at 60%
+  static const Color _lightTint = Color(0xB8F3F6FB); // cool white at 72%
+  static const Color _darkTint = Color(0x9A0C1626); // midnight blue at 60%
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +246,7 @@ class _NavItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: const Duration(milliseconds: 240),
             curve: Curves.easeOutCubic,
             height: Layout.navItemHeight,
             decoration: BoxDecoration(
@@ -303,7 +303,7 @@ class GlassPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.capsule),
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+          duration: const Duration(milliseconds: 240),
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(
             horizontal: Spacing.md,

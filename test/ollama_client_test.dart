@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:opencred/ollama_client.dart';
 import 'package:opencred/trustscore_engine.dart';
-import 'package:opencred/trustscore_model.dart';
 
 const _config = OllamaConfig(
   baseUrl: 'http://192.168.1.20:11434',
@@ -51,7 +50,6 @@ void main() {
     final result = await client.assess(
       config: _config,
       evidence: _evidence(),
-      requiredFeatures: 4,
     );
 
     expect(captured.url.toString(), 'http://192.168.1.20:11434/api/chat');
@@ -99,10 +97,9 @@ void main() {
     final result = await client.assess(
       config: _config,
       evidence: _evidence(),
-      requiredFeatures: 4,
     );
 
-    expect(requests, hasLength(2));
+    expect(requests, hasLength(6));
     expect(requests.first['format'], 'json');
     expect(requests.first['think'], isFalse);
     expect(requests.last.containsKey('format'), isFalse);
@@ -123,7 +120,6 @@ void main() {
       () => client.assess(
         config: _config,
         evidence: _evidence(),
-        requiredFeatures: 4,
       ),
       throwsA(
         isA<OllamaException>().having(
@@ -150,51 +146,35 @@ void main() {
     final result = await client.assess(
       config: _config,
       evidence: _evidence(),
-      requiredFeatures: 4,
     );
     expect(result.score, 640);
   });
 
-  test('falls back to the bundled model when Ollama is unreachable', () async {
-    final local = await TrustScoreModel.load();
-    final result = await TrustScoreEngine.assess(
-      local: local,
-      evidence: _evidence(),
-      config: _config,
-      client: OllamaClient(
-        client: MockClient((_) async => http.Response('down', 503)),
-      ),
-    );
-
-    expect(result.status, 'scored');
-    expect(result.isOllama, isFalse);
-    expect(result.modelVersion, isNot(startsWith('ollama/')));
-  });
-
-  test('sparse evidence never reaches the laptop model', () async {
-    final local = await TrustScoreModel.load();
+  test('scores a plain-English description with no numeric values', () async {
     var calls = 0;
-    final result = await TrustScoreEngine.assess(
-      local: local,
-      evidence: {
-        'utility_payment_consistency_pct': 92,
-        'rent_payment_reliability_pct': null,
-        'verified_income_regularity_pct': null,
-        'previous_loan_repayment_history': null,
-        'missed_payments_count_12m': null,
-        'existing_financial_obligations_ratio': null,
-      },
+    final client = OllamaClient(
+      client: MockClient((request) async {
+        calls++;
+        expect(request.body, contains('Pays rent on time'));
+        return http.Response(
+          jsonEncode({
+            'message': {
+              'content': '{"status":"scored","score":670,"probability":0.67}',
+            },
+          }),
+          200,
+        );
+      }),
+    );
+    final result = await TrustScoreEngine.assessDetailed(
+      evidence: {for (final key in _evidence().keys) key: null},
       config: _config,
-      client: OllamaClient(
-        client: MockClient((_) async {
-          calls++;
-          return http.Response('{}', 200);
-        }),
-      ),
+      description: 'Pays rent on time and receives regular income.',
+      client: client,
     );
 
-    expect(calls, 0);
-    expect(result.status, 'insufficient_evidence');
-    expect(result.score, isNull);
+    expect(calls, 3);
+    expect(result.assessment.score, 670);
+    expect(result.cache?.scores, [670, 670, 670]);
   });
 }
