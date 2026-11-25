@@ -81,11 +81,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
                           const SizedBox(width: Spacing.sm),
                           Text(
-                            'TrustScore',
+                            'TRUSTSCORE',
                             style: TextStyle(
+                              fontFamily: 'BarlowCondensed',
+                              fontStyle: FontStyle.italic,
                               fontSize: 17,
                               height: 1,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .5,
                               color: palette.ink,
                             ),
                           ),
@@ -95,22 +98,39 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            width: 32,
-                            height: 2,
-                            decoration: BoxDecoration(
-                              color: palette.accent,
-                              borderRadius: BorderRadius.circular(1),
-                            ),
-                          ),
+                              width: 34, height: 3, color: palette.accent),
                           const SizedBox(height: Spacing.md),
                           Text(
-                            'Trust beyond\ncredit history',
+                            'UN SDG 1  ·  NO POVERTY',
                             style: TextStyle(
-                              fontSize: 40,
-                              height: 1.08,
-                              letterSpacing: -0.8,
+                              fontFamily: 'BarlowCondensed',
+                              fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: palette.ink,
+                              letterSpacing: 1,
+                              color: palette.secondary,
+                            ),
+                          ),
+                          const SizedBox(height: Spacing.sm),
+                          Text.rich(
+                            TextSpan(
+                              style: TextStyle(
+                                fontFamily: 'BarlowCondensed',
+                                fontStyle: FontStyle.italic,
+                                fontSize: MediaQuery.sizeOf(context).width < 360
+                                    ? 42
+                                    : 50,
+                                height: .92,
+                                letterSpacing: -.6,
+                                fontWeight: FontWeight.w900,
+                                color: palette.ink,
+                              ),
+                              children: [
+                                const TextSpan(text: 'TRUST BEYOND\n'),
+                                TextSpan(
+                                  text: 'CREDIT HISTORY.',
+                                  style: TextStyle(color: palette.accent),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: Spacing.md),
@@ -129,12 +149,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         children: [
                           FilledButton(
                             onPressed: widget.state.startDemo,
-                            child: const Text('Get started'),
+                            child: const Text('GET STARTED'),
                           ),
                           const SizedBox(height: Spacing.sm),
                           const Center(
                             child: MetaText(
-                              'TrustScore · GEMS Innovation Challenge',
+                              'TRUSTSCORE  ·  GLOBAL INNOVATION CHALLENGE',
                             ),
                           ),
                         ],

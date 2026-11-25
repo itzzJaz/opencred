@@ -6,6 +6,7 @@ import 'demo_repository.dart';
 import 'liquid_glass.dart';
 import 'judge_lens.dart';
 import 'motion_widgets.dart';
+import 'three_d_stage.dart';
 import 'models.dart';
 import 'widgets.dart';
 import 'screens/overview_screen.dart';
@@ -351,7 +352,17 @@ class _HandoffIdentity extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Spacing.lg),
-          ApplicantAvatar(applicant: applicant, size: 168),
+          SizedBox(
+            width: 240,
+            height: 250,
+            child: ThreeDStage(
+              key: ValueKey('3d-profile-${applicant.id}'),
+              style: ThreeDStageStyle.profile,
+              identity: '${applicant.id}:${applicant.name}',
+              accent: palette.accent,
+              surface: palette.hero,
+            ),
+          ),
           const SizedBox(height: Spacing.lg),
           Text(
             applicant.name,
@@ -396,7 +407,7 @@ class _ProfileAtmospherePainter extends CustomPainter {
           colors: [
             accent.withValues(alpha: .22),
             base,
-            const Color(0xFF07090D)
+            const Color(0xFF0A0A0B)
           ],
           stops: const [0, .48, 1],
         ).createShader(rect),
@@ -417,7 +428,7 @@ class _ProfileAtmospherePainter extends CustomPainter {
     );
 
     final skyline = Paint()
-      ..color = const Color(0xFF080A0E).withValues(alpha: .78);
+      ..color = const Color(0xFF0A0A0B).withValues(alpha: .78);
     const heights = [.12, .2, .16, .28, .18, .24, .14, .22, .17];
     final drift = (1 - progress) * size.width * .045;
     for (var i = 0; i < heights.length; i++) {
@@ -490,10 +501,13 @@ class _ProfileBar extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Profile',
+                                  'TRUSTSCORE',
                                   style: TextStyle(
+                                    fontFamily: 'BarlowCondensed',
                                     fontSize: 11,
                                     height: 1.2,
+                                    letterSpacing: .5,
+                                    fontWeight: FontWeight.w500,
                                     color: palette.muted,
                                   ),
                                 ),
@@ -542,8 +556,13 @@ class _ProfileBar extends StatelessWidget {
                 size: 16,
               ),
               label: const Text(
-                'Judge Lens',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                'JUDGE LENS',
+                style: TextStyle(
+                  fontFamily: 'BarlowCondensed',
+                  fontSize: 13,
+                  letterSpacing: .4,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -806,11 +825,11 @@ class JourneyButton extends StatelessWidget {
       ),
       iconAlignment: IconAlignment.end,
       icon: const Icon(Icons.arrow_forward, size: 18),
-      label: const Text('Continue application'),
+      label: const Text('CONTINUE APPLICATION'),
       style: onHero
           ? FilledButton.styleFrom(
-              backgroundColor: palette.onHero,
-              foregroundColor: palette.hero,
+              backgroundColor: palette.accent,
+              foregroundColor: palette.onAccent,
             )
           : null,
     );

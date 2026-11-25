@@ -6,6 +6,7 @@ import '../app_theme.dart';
 import '../models.dart';
 import '../motion_widgets.dart';
 import '../ollama_client.dart';
+import '../three_d_stage.dart';
 import '../widgets.dart';
 import 'create_applicant_screen.dart';
 
@@ -267,11 +268,13 @@ class _EngineBanner extends StatelessWidget {
           children: [
             if (busy)
               SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: palette.accent,
+                width: 42,
+                height: 42,
+                child: ThreeDStage(
+                  style: ThreeDStageStyle.emblem,
+                  identity: state.selected.id,
+                  accent: palette.accent,
+                  surface: palette.surface,
                 ),
               )
             else

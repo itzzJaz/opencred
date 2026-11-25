@@ -43,8 +43,8 @@ class LiquidGlassSurface extends StatelessWidget {
   /// edge can turn it off.
   final bool elevated;
 
-  static const Color _lightTint = Color(0xB8F3F6FB); // cool white at 72%
-  static const Color _darkTint = Color(0x9A0C1626); // midnight blue at 60%
+  static const Color _lightTint = Color(0xB8F4F3EF);
+  static const Color _darkTint = Color(0xC2141416);
 
   @override
   Widget build(BuildContext context) {
@@ -62,8 +62,8 @@ class LiquidGlassSurface extends StatelessWidget {
         ? const BorderRadius.all(Radius.circular(Radii.capsule))
         : borderRadius;
     final rimColor =
-        rim ?? Colors.white.withValues(alpha: isDark ? 0.18 : 0.22);
-    final sheen = Colors.white.withValues(alpha: isDark ? 0.10 : 0.45);
+        rim ?? Colors.white.withValues(alpha: isDark ? 0.16 : 0.35);
+    final sheen = Colors.white.withValues(alpha: isDark ? 0.06 : 0.35);
 
     final glass = ClipRRect(
       borderRadius: radius,
@@ -233,8 +233,8 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(context);
-    final foreground = selected ? palette.onInk : palette.secondary;
-    final fill = selected ? palette.ink : Colors.transparent;
+    final foreground = selected ? palette.onAccent : palette.secondary;
+    final fill = selected ? palette.accent : Colors.transparent;
 
     return Semantics(
       button: true,
@@ -243,7 +243,7 @@ class _NavItem extends StatelessWidget {
       child: Tooltip(
         message: destination.label,
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(Radii.capsule),
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 240),
@@ -251,7 +251,7 @@ class _NavItem extends StatelessWidget {
             height: Layout.navItemHeight,
             decoration: BoxDecoration(
               color: fill,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(Radii.capsule),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -259,13 +259,15 @@ class _NavItem extends StatelessWidget {
                 Icon(destination.icon, size: 20, color: foreground),
                 const SizedBox(height: Spacing.xxs),
                 Text(
-                  destination.label,
+                  destination.label.toUpperCase(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontFamily: 'BarlowCondensed',
+                    fontSize: 13,
                     height: 1.2,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w500,
+                    letterSpacing: .5,
                     color: foreground,
                   ),
                 ),
@@ -295,7 +297,7 @@ class GlassPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(context);
-    final foreground = selected ? palette.onInk : palette.secondary;
+    final foreground = selected ? palette.onAccent : palette.secondary;
     return Semantics(
       button: true,
       selected: selected,
@@ -310,11 +312,11 @@ class GlassPill extends StatelessWidget {
             vertical: Spacing.xs,
           ),
           decoration: BoxDecoration(
-            color: selected ? palette.ink : Colors.transparent,
+            color: selected ? palette.accent : Colors.transparent,
             borderRadius: BorderRadius.circular(Radii.capsule),
           ),
           child: Text(
-            label,
+            label.toUpperCase(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -322,6 +324,8 @@ class GlassPill extends StatelessWidget {
               fontSize: 13,
               height: 1.2,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              fontFamily: 'BarlowCondensed',
+              letterSpacing: .4,
               color: foreground,
             ),
           ),

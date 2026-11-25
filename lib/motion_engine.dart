@@ -120,9 +120,9 @@ class _ScrollMotionItemState extends State<ScrollMotionItem>
     super.initState();
     _anim = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 480),
+      duration: const Duration(milliseconds: 900),
     );
-    _curve = CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic);
+    _curve = CurvedAnimation(parent: _anim, curve: const Cubic(.2, .8, .2, 1));
 
     if (widget.delayMs > 0) {
       Future.delayed(Duration(milliseconds: widget.delayMs), () {
@@ -231,8 +231,8 @@ class SeamlessContinuousMarquee extends StatefulWidget {
     this.height = 96.0,
     this.velocity = 35.0, // pixels per second
     this.scrubMultiplier = 0.5,
-    this.backgroundColor = const Color(0xFF111214),
-    this.accentColor = const Color(0xFFE5243B),
+    this.backgroundColor = const Color(0xFF0A0A0B),
+    this.accentColor = const Color(0xFFE10600),
     super.key,
   });
 
@@ -253,6 +253,7 @@ class _SeamlessContinuousMarqueeState extends State<SeamlessContinuousMarquee>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ticker;
   double _scrollScrubOffset = 0.0;
+  bool _isTest = false;
 
   @override
   void initState() {
@@ -263,14 +264,22 @@ class _SeamlessContinuousMarqueeState extends State<SeamlessContinuousMarquee>
       duration: const Duration(seconds: 24),
     );
 
-    // Only start infinite loop when not running in automated tests
-    final isTest =
-        WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    if (!isTest) {
-      _ticker.repeat();
-    }
+    _isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
 
     widget.scrollController?.addListener(_onScroll);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isTest) return;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduceMotion && _ticker.isAnimating) {
+      _ticker.stop();
+    } else if (!reduceMotion && !_ticker.isAnimating) {
+      _ticker.repeat();
+    }
   }
 
   void _onScroll() {
@@ -291,6 +300,32 @@ class _SeamlessContinuousMarqueeState extends State<SeamlessContinuousMarquee>
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduceMotion) {
+      return SizedBox(
+        height: widget.height,
+        child: ColoredBox(
+          color: widget.backgroundColor,
+          child: Center(
+            child: Text(
+              widget.text.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'BarlowCondensed',
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                fontStyle: FontStyle.italic,
+                letterSpacing: -.5,
+                height: 1,
+                color: Color(0xFFF4F3EF),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return SizedBox(
       height: widget.height,
       child: ClipRect(
@@ -322,12 +357,13 @@ class _SeamlessContinuousMarqueeState extends State<SeamlessContinuousMarquee>
                             Text(
                               widget.text.toUpperCase(),
                               style: const TextStyle(
+                                fontFamily: 'BarlowCondensed',
                                 fontSize: 34,
                                 fontWeight: FontWeight.w900,
                                 fontStyle: FontStyle.italic,
                                 letterSpacing: -1.0,
                                 height: 1.0,
-                                color: Color(0xFFF2F2F0),
+                                color: Color(0xFFF4F3EF),
                               ),
                             ),
                             const SizedBox(width: 32),
@@ -355,15 +391,15 @@ class _SeamlessContinuousMarqueeState extends State<SeamlessContinuousMarquee>
 // ─────────────────────────────────────────────────────────────────────────────
 // LECLERC GEOMETRIC SHUTTER TRANSITION
 // Multi-blade aerodynamic parallelogram wipe inspired by charlesleclerc.com.
-// Blades of Crimson (#E5243B) and Dark Ink (#111214) slice across the screen.
+// Signal red and near-black blades slice across the screen.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class LeclercGeometricShutter extends StatelessWidget {
   const LeclercGeometricShutter({
     required this.progress,
     required this.child,
-    this.primaryColor = const Color(0xFFE5243B),
-    this.secondaryColor = const Color(0xFF111214),
+    this.primaryColor = const Color(0xFFE10600),
+    this.secondaryColor = const Color(0xFF0A0A0B),
     this.direction = TextDirection.ltr,
     super.key,
   });
@@ -497,8 +533,8 @@ class LeclercPageRoute<T> extends PageRouteBuilder<T> {
 class LeclercShutterBandPainter extends CustomPainter {
   const LeclercShutterBandPainter({
     required this.progress,
-    this.primaryColor = const Color(0xFFE5243B),
-    this.secondaryColor = const Color(0xFF111214),
+    this.primaryColor = const Color(0xFFE10600),
+    this.secondaryColor = const Color(0xFF0A0A0B),
   });
 
   final double progress;

@@ -225,7 +225,7 @@ class DemoState extends ChangeNotifier {
   bool showWelcome = true;
   bool judgeLensEnabled = false;
   String applicationStatus = 'Under review';
-  ThemeMode themeMode = ThemeMode.system;
+  ThemeMode themeMode = ThemeMode.dark;
   final Map<String, String> _notes = {};
 
   /// Ollama server configuration used by all profile scoring.

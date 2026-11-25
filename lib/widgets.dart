@@ -30,7 +30,14 @@ class PageHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: theme.textTheme.headlineMedium),
+                Container(
+                  width: 30,
+                  height: 3,
+                  color: palette.accent,
+                ),
+                const SizedBox(height: Spacing.sm),
+                Text(title.toUpperCase(),
+                    style: theme.textTheme.headlineMedium),
                 if (subtitle != null) ...[
                   const SizedBox(height: Spacing.xs),
                   Text(
@@ -66,7 +73,7 @@ class SectionHeader extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                title,
+                title.toUpperCase(),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
@@ -107,13 +114,15 @@ class StatusLabel extends StatelessWidget {
         ],
         Flexible(
           child: Text(
-            label,
+            label.toUpperCase(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
+              fontFamily: 'BarlowCondensed',
               fontSize: 12,
               height: 1.33,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
+              letterSpacing: .3,
               color: resolved,
             ),
           ),
@@ -134,12 +143,15 @@ class MetaText extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = Palette.of(context);
     return Text(
-      text,
+      text.toUpperCase(),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        fontSize: 12,
+        fontFamily: 'BarlowCondensed',
+        fontSize: 12.5,
         height: 1.33,
+        fontWeight: FontWeight.w500,
+        letterSpacing: .35,
         color: color ?? palette.muted,
       ),
     );

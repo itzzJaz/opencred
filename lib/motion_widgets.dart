@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
 import 'motion_engine.dart';
+import 'three_d_stage.dart';
 
 export 'motion_engine.dart';
 
@@ -24,10 +25,27 @@ class ScrollRevealList extends StatefulWidget {
 
 class _ScrollRevealListState extends State<ScrollRevealList> {
   late final ScrollController _controller = ScrollController();
+  final ValueNotifier<double> _scrollProgress = ValueNotifier<double>(0);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_updateProgress);
+  }
+
+  void _updateProgress() {
+    if (!_controller.hasClients) return;
+    final extent = _controller.position.maxScrollExtent;
+    _scrollProgress.value = extent <= 0
+        ? 0
+        : (_controller.position.pixels / extent).clamp(0.0, 1.0);
+  }
 
   @override
   void dispose() {
+    _controller.removeListener(_updateProgress);
     _controller.dispose();
+    _scrollProgress.dispose();
     super.dispose();
   }
 
@@ -44,16 +62,49 @@ class _ScrollRevealListState extends State<ScrollRevealList> {
               for (var i = 0; i < widget.children.length; i++)
                 ScrollMotionItem(
                   key: ValueKey('scroll-reveal-$i'),
-                  style: i % 4 == 0
-                      ? KineticEntranceStyle.slideUp
-                      : KineticEntranceStyle.skewBlade,
+                  style: KineticEntranceStyle.slideUp,
                   delayMs: math.min(i * 55, 275),
                   parallaxFactor: 0.006,
                   child: widget.children[i],
                 ),
             ],
     );
-    return ScrollMotionScope(controller: _controller, child: list);
+    final palette = Palette.of(context);
+    return ScrollMotionScope(
+      controller: _controller,
+      child: Stack(
+        children: [
+          list,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: SizedBox(
+                height: 3,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: palette.hairline),
+                    ValueListenableBuilder<double>(
+                      valueListenable: _scrollProgress,
+                      builder: (context, progress, _) => Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: progress,
+                          heightFactor: 1,
+                          child: ColoredBox(color: palette.accent),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -140,18 +191,24 @@ class _EditorialPreloaderState extends State<EditorialPreloader>
           fit: StackFit.expand,
           children: [
             widget.child,
-            const ColoredBox(color: Color(0xFF090A0C)),
+            const ColoredBox(color: Color(0xFF0A0A0B)),
             RepaintBoundary(
-              child: ClipPath(
-                clipper: _TSSplashClipper(exitProgress: exit),
-                child: const ColoredBox(color: Color(0xFFE5243B)),
+              child: Opacity(
+                opacity: 1 - exit,
+                child: const ThreeDStage(
+                  key: ValueKey('3d-startup-black-hole'),
+                  style: ThreeDStageStyle.blackHole,
+                  identity: 'TrustScore event horizon',
+                  accent: Color(0xFFE10600),
+                  surface: Color(0xFF05050A),
+                ),
               ),
             ),
             IgnorePointer(
               child: SafeArea(
                 child: Center(
                   child: Opacity(
-                    opacity: (logo * 1.6).clamp(0.0, 1.0),
+                    opacity: (logo * 1.6).clamp(0.0, 1.0) * (1 - exit),
                     child: Transform.scale(
                       scale: 0.72 + 0.28 * logo,
                       child: Column(
@@ -165,16 +222,89 @@ class _EditorialPreloaderState extends State<EditorialPreloader>
                           Container(
                             width: 52 + 120 * logo,
                             height: 2,
-                            color: const Color(0xFFF4F3F1),
+                            color: const Color(0xFFF4F3EF),
                           ),
                           const SizedBox(height: Spacing.sm),
                           const Text(
                             'TRUSTSCORE',
                             style: TextStyle(
-                              color: Color(0xFFF4F3F1),
+                              color: Color(0xFFF4F3EF),
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: SafeArea(
+                  top: false,
+                  child: Opacity(
+                    opacity: 1 - exit,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        Spacing.lg,
+                        Spacing.sm,
+                        Spacing.lg,
+                        Spacing.md,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'TRUSTSCORE  /  LOADING THE GRID',
+                                  style: TextStyle(
+                                    fontFamily: 'BarlowCondensed',
+                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                    letterSpacing: .7,
+                                    color: Color(0xFFF4F3EF),
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${(_ctrl.value * 100).round()}%',
+                                style: const TextStyle(
+                                  fontFamily: 'BarlowCondensed',
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                  color: Color(0xFFF4F3EF),
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: Spacing.xs),
+                          SizedBox(
+                            height: 3,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                const ColoredBox(color: Color(0x66E10600)),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FractionallySizedBox(
+                                    widthFactor: _ctrl.value.clamp(0.0, 1.0),
+                                    heightFactor: 1,
+                                    child: const ColoredBox(
+                                        color: Color(0xFFF4F3EF)),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -189,29 +319,6 @@ class _EditorialPreloaderState extends State<EditorialPreloader>
       },
     );
   }
-}
-
-class _TSSplashClipper extends CustomClipper<Path> {
-  const _TSSplashClipper({required this.exitProgress});
-  final double exitProgress;
-
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    final travel = exitProgress * (size.width + size.height * 0.24);
-    final slant = exitProgress * size.height * 0.24;
-    path
-      ..moveTo(travel + slant, 0)
-      ..lineTo(size.width + travel + slant, 0)
-      ..lineTo(size.width + travel, size.height)
-      ..lineTo(travel, size.height)
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant _TSSplashClipper oldClipper) =>
-      oldClipper.exitProgress != exitProgress;
 }
 
 class _TSCalligraphyPainter extends CustomPainter {
@@ -243,7 +350,7 @@ class _TSCalligraphyPainter extends CustomPainter {
     );
     var remaining = totalLength * progress.clamp(0.0, 1.0);
     final paint = Paint()
-      ..color = const Color(0xFFF4F3F1)
+      ..color = const Color(0xFFF4F3EF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 9
       ..strokeCap = StrokeCap.round
@@ -283,12 +390,8 @@ class SkewShutterDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = Palette.of(context);
-    final topColor = fromDark
-        ? (palette.isDark ? const Color(0xFF090A0C) : const Color(0xFF111214))
-        : palette.canvas;
-    final bottomColor = fromDark
-        ? palette.canvas
-        : (palette.isDark ? const Color(0xFF090A0C) : const Color(0xFF111214));
+    final topColor = fromDark ? const Color(0xFF0A0A0B) : palette.canvas;
+    final bottomColor = fromDark ? palette.canvas : const Color(0xFF0A0A0B);
 
     return SizedBox(
       height: height,

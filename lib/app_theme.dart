@@ -11,12 +11,12 @@ abstract final class Spacing {
   static const double xxl = 48;
 }
 
-/// Razor-sharp geometric corner radii (4px flat architectural / motorsport style).
+/// Square corners from the website's editorial card and button system.
 abstract final class Radii {
-  static const double card = 4;
-  static const double field = 4;
-  static const double row = 2;
-  static const double capsule = 4;
+  static const double card = 0;
+  static const double field = 0;
+  static const double row = 0;
+  static const double capsule = 0;
 }
 
 abstract final class Layout {
@@ -25,9 +25,7 @@ abstract final class Layout {
   static const double pageBottomInset = 96;
 }
 
-/// Flat, razor-sharp motorsport/Swiss editorial palette.
-/// Editorial Paper Off-White (#F2F2F0), Matte Dark Ink (#111214),
-/// Flat Architectural Grey (#E6E6E2), and UN SDG 1 Crimson (#E5243B).
+/// TrustScore's site palette: near-black, off-white, and signal red.
 @immutable
 class Palette {
   const Palette({
@@ -62,7 +60,7 @@ class Palette {
   final Color secondary;
   final Color muted;
 
-  /// UN SDG 1 Crimson (#E5243B) signature accent.
+  /// Signal red used across the website's chips, rules and highlights.
   final Color accent;
   final Color onAccent;
   final Color accentTint;
@@ -81,42 +79,42 @@ class Palette {
 
   static const light = Palette(
     brightness: Brightness.light,
-    canvas: Color(0xFFF2F2F0), // Editorial Paper Off-White
-    surface: Color(0xFFE6E6E2), // Flat Architectural Grey
-    raised: Color(0xFFDADAD4),
-    hairline: Color(0x1F111214), // 12% ink hairline
-    ink: Color(0xFF111214), // Matte Dark Ink
-    onInk: Color(0xFFF2F2F0),
-    secondary: Color(0xFF55575E),
-    muted: Color(0xFF7E8088),
-    accent: Color(0xFFE5243B), // UN SDG 1 Crimson
+    canvas: Color(0xFFF4F3EF),
+    surface: Color(0xFFECEBE7),
+    raised: Color(0xFFDEDDDA),
+    hairline: Color(0x24141416),
+    ink: Color(0xFF0A0A0B),
+    onInk: Color(0xFFF4F3EF),
+    secondary: Color(0xFF515155),
+    muted: Color(0xFF77777C),
+    accent: Color(0xFFE10600),
     onAccent: Color(0xFFFFFFFF),
-    accentTint: Color(0x26E5243B),
-    positive: Color(0xFF1B6A4C), // High contrast forest emerald
-    warning: Color(0xFF5375A8),
-    negative: Color(0xFFE5243B),
-    hero: Color(0xFF111214),
-    onHero: Color(0xFFF2F2F0),
+    accentTint: Color(0x26E10600),
+    positive: Color(0xFF176B4A),
+    warning: Color(0xFF526A88),
+    negative: Color(0xFFE10600),
+    hero: Color(0xFF0A0A0B),
+    onHero: Color(0xFFF4F3EF),
   );
 
   static const dark = Palette(
     brightness: Brightness.dark,
-    canvas: Color(0xFF111214), // Matte Dark Ink
-    surface: Color(0xFF1B1C20),
-    raised: Color(0xFF25272D),
-    hairline: Color(0x1FFFFFFF), // 12% white hairline
-    ink: Color(0xFFF2F2F0), // Paper Off-White
-    onInk: Color(0xFF111214),
-    secondary: Color(0xFFA0A3AD),
-    muted: Color(0xFF6E717B),
-    accent: Color(0xFFE5243B), // UN SDG 1 Crimson
+    canvas: Color(0xFF0A0A0B),
+    surface: Color(0xFF141416),
+    raised: Color(0xFF1D1D20),
+    hairline: Color(0x29FFFFFF),
+    ink: Color(0xFFF4F3EF),
+    onInk: Color(0xFF0A0A0B),
+    secondary: Color(0xFFA2A2A6),
+    muted: Color(0xFF77777C),
+    accent: Color(0xFFE10600),
     onAccent: Color(0xFFFFFFFF),
-    accentTint: Color(0x33E5243B),
-    positive: Color(0xFF34D399),
-    warning: Color(0xFF91B8EF),
-    negative: Color(0xFFF87171),
-    hero: Color(0xFF090A0C),
-    onHero: Color(0xFFF2F2F0),
+    accentTint: Color(0x33E10600),
+    positive: Color(0xFF62BD91),
+    warning: Color(0xFF9BA6B7),
+    negative: Color(0xFFE10600),
+    hero: Color(0xFF0A0A0B),
+    onHero: Color(0xFFF4F3EF),
   );
 }
 
@@ -132,12 +130,29 @@ class OpenCredTheme {
     double letterSpacing = 0,
   ]) =>
       TextStyle(
+        fontFamily: 'Barlow',
         color: p.ink,
         fontSize: size,
         height: height,
         fontWeight: weight,
         letterSpacing: letterSpacing,
         fontFeatures: const [FontFeature.tabularFigures()],
+      );
+
+  static TextStyle _displayStyle(
+    Palette p,
+    double size,
+    double height,
+    double letterSpacing,
+  ) =>
+      TextStyle(
+        fontFamily: 'BarlowCondensed',
+        fontStyle: FontStyle.italic,
+        color: p.ink,
+        fontSize: size,
+        height: height,
+        fontWeight: FontWeight.w900,
+        letterSpacing: letterSpacing,
       );
 
   static OutlineInputBorder _fieldBorder(Color color, {double width = 1}) =>
@@ -148,10 +163,10 @@ class OpenCredTheme {
 
   static ThemeData _build(Palette p) {
     final scheme =
-        ColorScheme.fromSeed(seedColor: p.ink, brightness: p.brightness)
+        ColorScheme.fromSeed(seedColor: p.accent, brightness: p.brightness)
             .copyWith(
-      primary: p.ink,
-      onPrimary: p.onInk,
+      primary: p.accent,
+      onPrimary: p.onAccent,
       secondary: p.accent,
       onSecondary: p.onAccent,
       tertiary: p.positive,
@@ -166,17 +181,23 @@ class OpenCredTheme {
     );
 
     final text = TextTheme(
-      headlineLarge: _style(p, 36, 0.98, FontWeight.w800, -1.2),
-      headlineMedium: _style(p, 28, 1.04, FontWeight.w700, -0.8),
-      headlineSmall: _style(p, 22, 1.12, FontWeight.w700, -0.4),
-      titleLarge: _style(p, 19, 1.2, FontWeight.w700, -0.2),
+      displayLarge: _displayStyle(p, 64, .92, -.6),
+      displayMedium: _displayStyle(p, 48, .94, -.5),
+      displaySmall: _displayStyle(p, 38, .96, -.4),
+      headlineLarge: _displayStyle(p, 38, .95, -.5),
+      headlineMedium: _displayStyle(p, 32, .98, -.25),
+      headlineSmall: _displayStyle(p, 26, 1.02, 0),
+      titleLarge: _displayStyle(p, 21, 1.08, .15),
       titleMedium: _style(p, 15, 1.25, FontWeight.w600),
       bodyLarge: _style(p, 15, 1.45, FontWeight.w400),
       bodyMedium: _style(p, 13.5, 1.45, FontWeight.w400),
       bodySmall: _style(p, 12, 1.4, FontWeight.w400),
-      labelLarge: _style(p, 14, 1.2, FontWeight.w700, 0.4),
-      labelMedium: _style(p, 12, 1.2, FontWeight.w600, 0.2),
-      labelSmall: _style(p, 10.5, 1.3, FontWeight.w600, 0.5),
+      labelLarge: _style(p, 14, 1.2, FontWeight.w700, 0.4)
+          .copyWith(fontFamily: 'BarlowCondensed'),
+      labelMedium: _style(p, 12, 1.2, FontWeight.w600, 0.4)
+          .copyWith(fontFamily: 'BarlowCondensed'),
+      labelSmall: _style(p, 10.5, 1.3, FontWeight.w600, 0.6)
+          .copyWith(fontFamily: 'BarlowCondensed'),
     );
 
     return ThemeData(
@@ -186,15 +207,14 @@ class OpenCredTheme {
       scaffoldBackgroundColor: p.canvas,
       textTheme: text.apply(bodyColor: p.ink, displayColor: p.ink),
       iconTheme: IconThemeData(color: p.secondary, size: 20),
-      // Flat card: 0 elevation, 0 shadow, 4px minimal radius, 1px crisp hairline
       cardTheme: CardThemeData(
         color: p.surface,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
-        shape: ContinuousRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.card),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
           side: BorderSide(color: p.hairline, width: 1),
         ),
       ),
@@ -212,16 +232,32 @@ class OpenCredTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: p.ink,
-          foregroundColor: p.onInk,
+          backgroundColor: p.accent,
+          foregroundColor: p.onAccent,
           disabledBackgroundColor: p.raised,
           disabledForegroundColor: p.muted,
           minimumSize: const Size(0, 48),
           padding: const EdgeInsets.symmetric(horizontal: 20),
           elevation: 0,
-          textStyle: _style(p, 14, 1.2, FontWeight.w700, 0.3),
+          textStyle: _style(p, 17, 1.05, FontWeight.w500, .7)
+              .copyWith(fontFamily: 'BarlowCondensed'),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.card),
+            borderRadius: BorderRadius.zero,
+            side: BorderSide(color: p.accent),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: p.ink,
+          side: BorderSide(color: p.hairline),
+          minimumSize: const Size(0, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          elevation: 0,
+          textStyle: _style(p, 17, 1.05, FontWeight.w500, .7)
+              .copyWith(fontFamily: 'BarlowCondensed'),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
           ),
         ),
       ),
@@ -231,8 +267,8 @@ class OpenCredTheme {
           minimumSize: const Size(0, 40),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           textStyle: _style(p, 13.5, 1.2, FontWeight.w600),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.card),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
           ),
         ),
       ),
@@ -286,11 +322,11 @@ class OpenCredTheme {
         elevation: 0,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: p.ink,
-        contentTextStyle: TextStyle(color: p.onInk, fontSize: 13.5),
+        backgroundColor: p.surface,
+        contentTextStyle: TextStyle(color: p.ink, fontSize: 13.5),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.card),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
         ),
       ),
       splashColor: p.ink.withValues(alpha: 0.04),
